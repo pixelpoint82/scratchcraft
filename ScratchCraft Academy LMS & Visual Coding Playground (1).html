@@ -1,0 +1,3480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScratchCraft Academy — Visual Block Coding LMS & Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Fredoka', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .scratch-block {
+      position: relative;
+      border-radius: 10px;
+      user-select: none;
+      transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+    }
+    .scratch-block:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+    .scratch-block.executing {
+      outline: 3px solid #fde047;
+      box-shadow: 0 0 18px rgba(250, 204, 21, 0.9);
+      transform: scale(1.02);
+      z-index: 20;
+    }
+    .hat-block {
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      padding-top: 10px;
+    }
+    .c-block-body {
+      border-left: 14px solid rgba(0, 0, 0, 0.16);
+      margin-left: 6px;
+      padding: 6px 6px 6px 8px;
+      min-height: 44px;
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 0 8px 8px 0;
+    }
+    .c-block-footer {
+      height: 14px;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+    .block-input {
+      background: #ffffff;
+      color: #1e293b;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      outline: none;
+      text-align: center;
+    }
+    .block-input:focus {
+      box-shadow: 0 0 0 2px #fde047;
+    }
+    .block-select {
+      background: rgba(0, 0, 0, 0.22);
+      color: #ffffff;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      outline: none;
+      cursor: pointer;
+    }
+    .block-select option {
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printable-certificate-area, #printable-certificate-area * { visibility: visible; }
+      #printable-certificate-area {
+        position: fixed;
+        inset: 0;
+        margin: 0;
+        padding: 24px;
+        background: white;
+        z-index: 99999;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Dedicated Full-Screen Confetti Canvas -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-[9999]"></canvas>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-[9998] flex flex-col gap-2 max-w-sm"></div>
+
+  <!-- Universal Modal Overlay -->
+  <div id="app-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div id="app-modal-body" class="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto p-6 animate-pop border border-slate-100"></div>
+  </div>
+
+  <!-- ===================================================================
+       VIEW 1: HOMEPAGE & LOGIN SCREEN (Student & Teacher Only)
+  ==================================================================== -->
+  <div id="home-login-view" class="min-h-screen flex flex-col">
+    <!-- Homepage Header (Double-click / triple-tap logo unlocks hidden Vendor Portal) -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <div id="brand-logo-home" class="flex items-center gap-2.5 cursor-pointer select-none group" title="ScratchCraft Academy">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+            <i class="fa-solid fa-puzzle-piece text-lg"></i>
+          </div>
+          <div>
+            <span class="font-display font-bold text-lg text-slate-900 tracking-tight block leading-none">ScratchCraft</span>
+            <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Academy LMS</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" data-action="scroll-login-student" class="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs sm:text-sm transition">
+            Student Login
+          </button>
+          <button type="button" data-action="scroll-login-teacher" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm transition">
+            Teacher Portal
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Interactive 4-Slide Hero Slideshow -->
+    <section class="bg-gradient-to-br from-indigo-950 via-blue-900 to-indigo-900 text-white py-10 sm:py-14 px-4 sm:px-6 relative overflow-hidden">
+      <div class="absolute -right-24 -top-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -left-24 -bottom-24 w-96 h-96 bg-amber-400/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="max-w-7xl mx-auto relative z-10">
+        <div id="hero-slide-stage" class="bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-6 sm:p-10 shadow-2xl"></div>
+
+        <div class="flex items-center justify-between mt-5 px-2">
+          <div id="hero-slide-dots" class="flex items-center gap-2"></div>
+          <div class="flex items-center gap-2">
+            <button type="button" data-action="hero-prev" class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition" title="Previous Slide">
+              <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+            <button type="button" data-action="hero-next" class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition" title="Next Slide">
+              <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Login Cards Section (Student & Teacher — Vendor is completely hidden) -->
+    <section id="login-cards-section" class="flex-1 max-w-5xl w-full mx-auto py-10 px-4 sm:px-6">
+      <div class="bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        <!-- Left Feature Summary -->
+        <div class="lg:col-span-5 bg-gradient-to-b from-slate-900 to-indigo-950 text-white p-8 flex flex-col justify-between">
+          <div>
+            <div class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-amber-300 text-xs font-bold uppercase tracking-wide mb-4">
+              <i class="fa-solid fa-sparkles"></i> K-12 Visual Block Coding
+            </div>
+            <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight mb-3">
+              Learn, Code & Earn <span class="text-amber-400">Certificates</span>
+            </h2>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-6">
+              Master 30 progressive Scratch topics with 6 interactive coding challenges per topic (180 total), 10-minute guided reading lessons, and live automated grading.
+            </p>
+            <div class="space-y-2.5 text-xs text-slate-200">
+              <div class="flex items-center gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400"></i> 30 Topics × 6 Hands-On Challenges</div>
+              <div class="flex items-center gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400"></i> 10-Minute Guided Reading & Class Discussion</div>
+              <div class="flex items-center gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400"></i> Printable Certificate on Every Challenge</div>
+            </div>
+          </div>
+
+          <div class="pt-6 mt-6 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Need a fresh start?</span>
+            <button type="button" data-action="reset-demo-data" class="text-amber-300 hover:underline font-bold">Reset Demo Data</button>
+          </div>
+        </div>
+
+        <!-- Right Login Tabs -->
+        <div class="lg:col-span-7 p-7 sm:p-9">
+          <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl mb-6">
+            <button type="button" id="tab-btn-student" data-action="login-tab-student" class="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 text-white shadow-sm transition">
+              <i class="fa-solid fa-rocket mr-1.5"></i> Student Login
+            </button>
+            <button type="button" id="tab-btn-teacher" data-action="login-tab-teacher" class="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition">
+              <i class="fa-solid fa-chalkboard-user mr-1.5"></i> Teacher Login
+            </button>
+          </div>
+
+          <!-- Student Login Form -->
+          <div id="form-panel-student">
+            <form id="student-login-form" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Select Student Account or Type Username</label>
+                <div class="flex gap-2">
+                  <input id="input-student-user" type="text" value="maya.lin" required class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Username (e.g. maya.lin)" />
+                  <select id="select-student-quickpick" class="px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-xs font-bold text-slate-700 outline-none max-w-[165px]"></select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Student Password</label>
+                <input id="input-student-pass" type="password" value="scratch123" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter student password" />
+              </div>
+              <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition">
+                Sign In as Student <i class="fa-solid fa-arrow-right ml-1.5"></i>
+              </button>
+            </form>
+
+            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span class="text-xs text-slate-500">Instant classroom preview:</span>
+              <button type="button" data-action="quick-demo-student" class="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition">
+                <i class="fa-solid fa-bolt mr-1"></i> 1-Click Student Demo (Maya Lin)
+              </button>
+            </div>
+          </div>
+
+          <!-- Teacher Login Form -->
+          <div id="form-panel-teacher" class="hidden">
+            <form id="teacher-login-form" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Educator Email</label>
+                <input id="input-teacher-email" type="email" value="d.rivera@oakridge.edu" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Educator Password</label>
+                <input id="input-teacher-pass" type="password" value="teacher2026" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+              </div>
+              <button type="submit" class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md transition">
+                Sign In to Teacher Portal <i class="fa-solid fa-arrow-right ml-1.5"></i>
+              </button>
+            </form>
+
+            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span class="text-xs text-slate-500">Manage sections, students & scores:</span>
+              <button type="button" data-action="quick-demo-teacher" class="px-4 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs transition">
+                <i class="fa-solid fa-bolt mr-1"></i> 1-Click Teacher Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Persistent Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 mt-auto">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+        <div>Developed by <strong class="text-slate-800">Taskify Digital Solution</strong></div>
+        <div class="text-slate-400">ScratchCraft Academy • Interactive Block Coding LMS</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===================================================================
+       VIEW 2: MAIN APPLICATION SHELL (Student / Teacher / Hidden Vendor)
+  ==================================================================== -->
+  <div id="app-shell-view" class="hidden flex-col min-h-screen">
+    <!-- Top Header Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <!-- Brand Logo (Double-click / triple-tap opens hidden Vendor Admin Portal) -->
+        <div id="brand-logo-app" class="flex items-center gap-2.5 cursor-pointer select-none group" title="ScratchCraft Academy">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+            <i class="fa-solid fa-puzzle-piece text-lg"></i>
+          </div>
+          <div>
+            <span class="font-display font-bold text-lg text-slate-900 tracking-tight block leading-none">ScratchCraft</span>
+            <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Academy LMS</span>
+          </div>
+        </div>
+
+        <!-- Portal Switcher (Vendor button stays hidden unless unlocked!) -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80">
+          <button type="button" id="nav-role-student" data-action="switch-role" data-role="student" class="px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-rocket"></i> <span class="hidden sm:inline">Student</span>
+          </button>
+          <button type="button" id="nav-role-teacher" data-action="switch-role" data-role="teacher" class="px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-chalkboard-user"></i> <span class="hidden sm:inline">Teacher</span>
+          </button>
+          <button type="button" id="nav-role-vendor" data-action="switch-role" data-role="vendor" class="hidden px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition items-center gap-1.5">
+            <i class="fa-solid fa-building-shield"></i> <span class="hidden sm:inline">Vendor Admin</span>
+          </button>
+        </div>
+
+        <!-- User Telemetry & Actions -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div id="student-xp-pill" class="hidden md:flex items-center gap-2.5 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-xl">
+            <span class="text-xs font-extrabold text-amber-600 flex items-center gap-1">
+              <i class="fa-solid fa-fire text-orange-500"></i> <span id="hdr-streak">7</span>d
+            </span>
+            <span class="text-slate-300">|</span>
+            <span class="text-xs font-extrabold text-indigo-700 flex items-center gap-1">
+              <i class="fa-solid fa-star text-amber-400"></i> <span id="hdr-xp">1,450</span> XP
+            </span>
+            <span class="text-slate-300">|</span>
+            <span class="text-xs font-bold text-emerald-700" id="hdr-progress">14/180</span>
+          </div>
+
+          <button type="button" data-action="reset-demo-data" title="Reset Demo Data" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition text-xs font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span class="hidden xl:inline">Reset Demo</span>
+          </button>
+
+          <button type="button" data-action="logout-home" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span class="hidden md:inline">Home / Logout</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Contextual Sub-Navigation Bar -->
+      <div class="bg-slate-50/95 border-t border-slate-200/70 px-4 sm:px-6 py-2">
+        <div id="subnav-container" class="max-w-[1600px] mx-auto flex items-center justify-between overflow-x-auto gap-4"></div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Workspace -->
+    <main id="main-workspace" class="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6"></main>
+
+    <!-- Persistent Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 mt-auto">
+      <div class="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+        <div>Developed by <strong class="text-slate-800">Taskify Digital Solution</strong></div>
+        <div class="text-slate-400">ScratchCraft Academy • 30-Topic Visual Block Coding LMS & Playground</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===================================================================
+       COMPLETE APPLICATION SCRIPT (Zero Syntax Errors, Event-Delegated)
+  ==================================================================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      /* -------------------------------------------------------------------
+         1. COMPLETE 30 AUTHENTIC SCRATCH TOPICS (6 CHALLENGES EACH = 180)
+      -------------------------------------------------------------------- */
+      const TOPICS_META = [
+        { id: 1, title: "Motion & Coordinates", category: "Motion", color: "#4C97FF", icon: "fa-arrows-up-down-left-right", desc: "Move sprites across the Cartesian X/Y stage grid and rotate in degrees.", analogy: "Giving step-by-step walking directions to a robot on a tiled floor.", keyBlocks: ["move (steps) steps", "turn right (deg) degrees", "go to x: (x) y: (y)"], prompt: "If your sprite starts at (0,0) and turns 90 degrees right four times while moving 50 steps each time, what shape does it trace?" },
+        { id: 2, title: "Looks & Costumes", category: "Looks", color: "#9966FF", icon: "fa-masks-theater", desc: "Switch character costumes, display speech bubbles, and adjust sprite scale.", analogy: "An actor changing outfits backstage and speaking lines to the audience.", keyBlocks: ["say (text) for (secs) secs", "next costume", "set size to (size) %"], prompt: "How does switching costumes rapidly inside a loop create the illusion of walking or flying?" },
+        { id: 3, title: "Sound & Music Notes", category: "Sound", color: "#CF63CF", icon: "fa-music", desc: "Synthesize audio effects and rhythmic drum beats using Web Audio.", analogy: "A DJ triggering sound effects and percussion loops on a digital soundboard.", keyBlocks: ["play sound [sound]", "play drum [drum] for (beats) beats"], prompt: "Why do sound effects like coin chimes or laser blasts make arcade games feel more responsive?" },
+        { id: 4, title: "Events & Green Flag", category: "Events", color: "#FFBF00", icon: "fa-flag", desc: "Trigger scripts cleanly when the Green Flag or sprite events fire.", analogy: "The starting whistle at a race that tells every runner to begin together.", keyBlocks: ["when Green Flag clicked", "when this sprite clicked"], prompt: "What happens if a stack of blocks has no Event hat block attached on top?" },
+        { id: 5, title: "Repeat Loops", category: "Control", color: "#FFAB19", icon: "fa-repeat", desc: "Eliminate repetitive blocks by repeating instructions a fixed number of times.", analogy: "Doing 10 jumping jacks without writing down the instruction 10 separate times.", keyBlocks: ["repeat (times) times"], prompt: "How many blocks do you save by using 'repeat (8)' instead of duplicating 2 blocks eight times?" },
+        { id: 6, title: "Forever & Animation", category: "Control", color: "#FFAB19", icon: "fa-infinity", desc: "Build continuous animation cycles that run throughout gameplay.", analogy: "A heartbeat or clock ticking steadily as long as the game is active.", keyBlocks: ["forever", "next costume", "wait (secs) seconds"], prompt: "Why is a short 'wait (0.2) seconds' block helpful inside a costume animation loop?" },
+        { id: 7, title: "Sensing & Touching", category: "Sensing", color: "#5CB1D6", icon: "fa-hand-pointer", desc: "Detect when sprites touch stage boundaries or reach target zones.", analogy: "Parking sensors on a car that alert the driver near a wall.", keyBlocks: ["if <touching edge?> then", "reset timer"], prompt: "What should happen in a Pong game when the ball senses it is touching the edge of the stage?" },
+        { id: 8, title: "Conditionals If-Then", category: "Control", color: "#FFAB19", icon: "fa-code-branch", desc: "Make smart decisions when a condition evaluates to true.", analogy: "Checking the sky: IF it is raining, THEN open your umbrella.", keyBlocks: ["if <touching edge?> then"], prompt: "Share a real-life 'If / Then' rule you use every school morning." },
+        { id: 9, title: "If-Then-Else Logic", category: "Control", color: "#FFAB19", icon: "fa-signs-post", desc: "Choose between two distinct actions based on state checks.", analogy: "A fork in a trail where you turn left with a map, or right without one.", keyBlocks: ["if <condition> then / else"], prompt: "How is an 'If / Then / Else' block cleaner than two separate 'If' blocks?" },
+        { id: 10, title: "Variables & Scorekeeping", category: "Operators", color: "#FF8C1A", icon: "fa-calculator", desc: "Store, reset, and increment player points during gameplay.", analogy: "A scoreboard box where you erase the old score and write the updated total.", keyBlocks: ["set [score] to (0)", "change [score] by (10)"], prompt: "Why is it important to reset 'score' to 0 right when the Green Flag is clicked?" },
+        { id: 11, title: "Operators & Math", category: "Operators", color: "#59C059", icon: "fa-square-root-variable", desc: "Calculate distances, angles, and multi-step numeric rewards.", analogy: "Using a pocket calculator to compute exact coordinates and bonus multipliers.", keyBlocks: ["change [score] by (val)", "move (steps) steps"], prompt: "How can multiplication help calculate bonus points when a player finishes quickly?" },
+        { id: 12, title: "Randomness & Dice", category: "Operators", color: "#59C059", icon: "fa-dice", desc: "Use random number generators for unpredictable movement and spawns.", analogy: "Rolling board-game dice so every round feels fresh and surprising.", keyBlocks: ["move pick random (min) to (max) steps"], prompt: "Why would an arcade game get predictable if enemies always moved the exact same distance?" },
+        { id: 13, title: "Pen Drawing & Geometry", category: "Pen", color: "#0FBD8C", icon: "fa-pen-nib", desc: "Draw polygons, stars, and colorful geometric art trails on stage.", analogy: "Attaching a marker under a robotic turtle so it draws everywhere it drives.", keyBlocks: ["pen down", "pen up", "set pen color", "erase all"], prompt: "What angle do you turn at each corner of a regular hexagon (360 ÷ 6)?" },
+        { id: 14, title: "Broadcasting Messages", category: "Events", color: "#FFBF00", icon: "fa-tower-broadcast", desc: "Coordinate multi-stage cutscenes and timed broadcasts.", analogy: "A film director calling 'Action!' so every actor performs on cue.", keyBlocks: ["when Green Flag clicked", "say (text) for (secs) secs"], prompt: "How can broadcast signals organize a multi-level story into clean chapters?" },
+        { id: 15, title: "Cloning Sprites", category: "Pen", color: "#0FBD8C", icon: "fa-clone", desc: "Stamp and duplicate sprite copies across the stage dynamically.", analogy: "Using an ink stamp to print dozens of stars across a poster.", keyBlocks: ["stamp sprite", "repeat (times) times"], prompt: "When making a starfield or confetti shower, why is stamping better than creating 50 separate sprites?" },
+        { id: 16, title: "Keyboard Movement Controls", category: "Events", color: "#FFBF00", icon: "fa-keyboard", desc: "Respond to arrow keys and spacebar presses for player control.", analogy: "Pressing directional buttons on a handheld game controller.", keyBlocks: ["when [space] key pressed", "move (steps) steps"], prompt: "Which keys feel most intuitive to players for jumping vs. steering?" },
+        { id: 17, title: "Mouse Pointer Tracking", category: "Motion", color: "#4C97FF", icon: "fa-computer-mouse", desc: "Aim sprites toward target coordinates and pointer trajectories.", analogy: "A flashlight beam following wherever you point your hand.", keyBlocks: ["point in direction (dir)", "glide (secs) secs to x: (x) y: (y)"], prompt: "What types of games feel best with mouse/touch aiming compared to keyboard arrows?" },
+        { id: 18, title: "Collision Detection", category: "Sensing", color: "#5CB1D6", icon: "fa-burst", desc: "Trigger bounce reactions, sound effects, and penalties on impact.", analogy: "Bumper cars bouncing off each other with a sound when they collide.", keyBlocks: ["if <touching edge?> then", "play sound [Laser]"], prompt: "What visual and audio feedback should happen the instant a player hits an obstacle?" },
+        { id: 19, title: "Custom My Blocks", category: "Control", color: "#FFAB19", icon: "fa-cubes", desc: "Group reusable movement and art routines into clean procedures.", analogy: "Writing a recipe card for 'Pancakes' so you can reuse it anytime.", keyBlocks: ["repeat (times) times", "move (steps) steps", "turn right (deg) degrees"], prompt: "Why do software engineers break large programs into small reusable procedures?" },
+        { id: 20, title: "String Manipulation", category: "Looks", color: "#9966FF", icon: "fa-font", desc: "Construct interactive dialogues, clues, and word puzzles.", analogy: "Snapping magnetic word tiles together to form custom messages.", keyBlocks: ["say (text) for (secs) secs", "ask (question) and wait"], prompt: "How does greeting a player by name make an interactive story more engaging?" },
+        { id: 21, title: "Lists & Inventory", category: "Operators", color: "#FF8C1A", icon: "fa-list-ol", desc: "Track collected gems, checkpoints, and sequential items.", analogy: "A backpack checklist tracking every key and potion collected on a quest.", keyBlocks: ["change [score] by (val)", "stamp sprite"], prompt: "What items would you include in an inventory list for a space exploration game?" },
+        { id: 22, title: "Gravity & Jumping Physics", category: "Motion", color: "#4C97FF", icon: "fa-arrow-up-from-bracket", desc: "Simulate upward jump arcs and smooth downward gravity landings.", analogy: "Tossing a ball upward and watching gravity pull it back to the ground.", keyBlocks: ["glide (secs) secs to x: (x) y: (y)"], prompt: "Why does a natural jump slow down near its highest point before falling?" },
+        { id: 23, title: "Velocity & Smooth Motion", category: "Motion", color: "#4C97FF", icon: "fa-gauge-high", desc: "Combine gradual acceleration and glide easing for fluid motion.", analogy: "A race car smoothly accelerating off the starting line rather than teleporting.", keyBlocks: ["glide (secs) secs to x: (x) y: (y)", "move (steps) steps"], prompt: "How does smooth gliding improve the visual polish of an animation?" },
+        { id: 24, title: "Timer & Stopwatch Games", category: "Sensing", color: "#5CB1D6", icon: "fa-stopwatch", desc: "Reset timers and build high-energy speedrun challenges.", analogy: "A kitchen stopwatch counting seconds during a speed-baking challenge.", keyBlocks: ["reset timer", "wait (secs) seconds"], prompt: "How does adding a 30-second countdown change how players play an arcade game?" },
+        { id: 25, title: "Multi-Level Game States", category: "Events", color: "#FFBF00", icon: "fa-layer-group", desc: "Transition between title screen, active level, and victory state.", analogy: "Turning pages in a storybook from Chapter 1 to Chapter 2.", keyBlocks: ["when Green Flag clicked", "next costume", "say (text) for (secs) secs"], prompt: "What should reset automatically whenever a player advances to Level 2?" },
+        { id: 26, title: "Health Bars & Damage", category: "Operators", color: "#FF8C1A", icon: "fa-heart-pulse", desc: "Track player shields, health points, and healing pickups.", analogy: "Heart containers in an adventure game that decrease on hits and refill with potions.", keyBlocks: ["set [score] to (100)", "change [score] by (-15)"], prompt: "How many hits should a player survive in a fair beginner level?" },
+        { id: 27, title: "Enemy AI & Patrolling", category: "Control", color: "#FFAB19", icon: "fa-robot", desc: "Program autonomous guard patrols with 180-degree turns.", analogy: "A museum guard walking steadily back and forth along a hallway.", keyBlocks: ["repeat (times) times", "move (steps) steps", "turn right (180) degrees"], prompt: "How can you make an AI patrol feel smarter than walking in a single straight line?" },
+        { id: 28, title: "Scrolling Backgrounds", category: "Motion", color: "#4C97FF", icon: "fa-panorama", desc: "Create high-speed horizontal traversal across wide stages.", analogy: "Looking out a train window as trees and mountains scroll past.", keyBlocks: ["go to x: (x) y: (y)", "glide (secs) secs to x: (x) y: (y)"], prompt: "How does scrolling scenery make a character look like it is sprinting fast?" },
+        { id: 29, title: "Storytelling & Dialogues", category: "Looks", color: "#9966FF", icon: "fa-book-open", desc: "Direct expressive conversations with timing, costumes, and audio.", analogy: "Animating a comic strip with speech bubbles and character poses.", keyBlocks: ["say (text) for (secs) secs", "next costume", "play sound [Meow]"], prompt: "How do pauses ('wait') between speech bubbles make dialogue easier to read?" },
+        { id: 30, title: "Capstone Arcade Game", category: "Pen", color: "#E11D48", icon: "fa-trophy", desc: "Unite motion, loops, variables, sound, and pen art into a master project!", analogy: "Directing a complete video game where art, music, movement, and scoring work together.", keyBlocks: ["pen down", "repeat (times) times", "change [score] by (val)", "play sound [Victory]"], prompt: "Which Scratch skill from Topics 1–29 are you proudest to showcase in your Capstone game?" }
+      ];
+
+      function buildFullCurriculum() {
+        const tiers = [
+          { label: "First Steps", diff: "Beginner", xp: 50 },
+          { label: "Precision Control", diff: "Beginner", xp: 60 },
+          { label: "Sequence & Timing", diff: "Intermediate", xp: 75 },
+          { label: "Loop Mastery", diff: "Intermediate", xp: 90 },
+          { label: "Dynamic Trial", diff: "Advanced", xp: 110 },
+          { label: "Topic Boss Challenge", diff: "Master", xp: 150 }
+        ];
+
+        return TOPICS_META.map((t) => {
+          const challenges = tiers.map((tier, idx) => {
+            const c = idx + 1;
+            const id = `${t.id}-${c}`;
+            let title = `${t.id}.${c} ${t.title}: ${tier.label}`;
+            let instruction = "";
+            let hint = "";
+            let starterBlocks = [{ type: "event_flag", params: {} }];
+            let validator = { minBlocks: 2, requiredTypes: [], checkDesc: "" };
+
+            if (t.id === 1) {
+              if (c === 1) {
+                title = "1.1 Take Your First Steps";
+                instruction = "Move your sprite forward by at least 60 steps when the Green Flag is clicked.";
+                hint = "Change 10 to 60 inside the 'move (10) steps' block and click Run!";
+                starterBlocks = [{ type: "event_flag", params: {} }, { type: "motion_move", params: { steps: 10 } }];
+                validator = { minBlocks: 2, requiredTypes: ["motion_move"], minDistance: 50, checkDesc: "Sprite moved at least 50 steps forward!" };
+              } else if (c === 2) {
+                title = "1.2 Quarter Turn Right";
+                instruction = "Move forward 50 steps, then turn right 90 degrees so the sprite faces downward (180°).";
+                hint = "Stack 'move (50) steps' and 'turn right (90) degrees'.";
+                starterBlocks = [{ type: "event_flag", params: {} }, { type: "motion_move", params: { steps: 50 } }];
+                validator = { minBlocks: 3, requiredTypes: ["motion_move", "motion_turn_right"], targetDir: 180, checkDesc: "Sprite turned 90° clockwise to face 180°!" };
+              } else if (c === 3) {
+                title = "1.3 Teleport to Top-Right";
+                instruction = "Use 'go to x y' to send the sprite directly to X: 110, Y: 80.";
+                hint = "Add 'go to x: (110) y: (80)' from the Motion palette.";
+                starterBlocks = [{ type: "event_flag", params: {} }];
+                validator = { minBlocks: 2, requiredTypes: ["motion_goto"], targetX: 110, targetY: 80, tolerance: 15, checkDesc: "Sprite reached coordinates (110, 80)!" };
+              } else if (c === 4) {
+                title = "1.4 Bottom-Left Quadrant";
+                instruction = "Negative coordinates move left and down! Go to X: -120, Y: -70.";
+                hint = "Set X to -120 and Y to -70 in 'go to x y'.";
+                starterBlocks = [{ type: "event_flag", params: {} }];
+                validator = { minBlocks: 2, requiredTypes: ["motion_goto"], targetX: -120, targetY: -70, tolerance: 15, checkDesc: "Sprite reached (-120, -70)!" };
+              } else if (c === 5) {
+                title = "1.5 L-Shape Navigation";
+                instruction = "Move 60 steps right, turn left 90 degrees, and move 60 steps upward.";
+                hint = "Use 'move', 'turn left (90)', and another 'move'.";
+                starterBlocks = [{ type: "event_flag", params: {} }];
+                validator = { minBlocks: 4, requiredTypes: ["motion_move", "motion_turn_left"], minDistance: 75, checkDesc: "Completed L-shape path with left turn!" };
+              } else {
+                title = "1.6 Square Patrol Boss";
+                instruction = "Use a 'repeat (4)' loop with 'move (55) steps' and 'turn right (90) degrees'.";
+                hint = "Add 'repeat (4)' from Control, then add 'move' and 'turn right' inside it.";
+                starterBlocks = [{ type: "event_flag", params: {} }];
+                validator = { minBlocks: 4, requiredTypes: ["control_repeat", "motion_move", "motion_turn_right"], checkDesc: "Completed 4-sided square patrol loop!" };
+              }
+            } else if (t.id === 13) {
+              const sides = c + 2;
+              const angle = Math.round(360 / sides);
+              title = `13.${c} Draw a ${sides}-Sided Polygon`;
+              instruction = `Put Pen Down and draw a ${sides}-sided shape using Repeat (${sides}), Move (45), and Turn Right (${angle}°)!`;
+              hint = `Keep 'pen down', then add 'repeat (${sides})' with 'move (45)' and 'turn right (${angle})'.`;
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "pen_clear", params: {} }, { type: "pen_down", params: {} }];
+              validator = { minBlocks: 5, requiredTypes: ["pen_down", "control_repeat", "motion_move"], minPenStrokes: 3, checkDesc: `Drew a ${sides}-sided geometric polygon with Pen!` };
+            } else if (t.id === 10 || t.id === 11 || t.id === 21 || t.id === 26) {
+              const targetPts = c * 15;
+              instruction = `Set score to 0, move your sprite forward, and increase [score] to at least ${targetPts} points!`;
+              hint = `Use 'set [score] to (0)', 'move (40) steps', and 'change [score] by (${targetPts})'.`;
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "var_set", params: { val: 0 } }];
+              validator = { minBlocks: 3, requiredTypes: ["var_change", "motion_move"], minScore: targetPts, checkDesc: `Score reached ${targetPts}+ points with movement!` };
+            } else if (t.category === "Looks") {
+              instruction = `Switch costume, say a friendly message to the audience, and move ${c * 25} steps!`;
+              hint = "Combine 'next costume', 'say [Hello!] for (1) secs', and 'move'.";
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "looks_next_costume", params: {} }];
+              validator = { minBlocks: 3, requiredTypes: ["looks_say", "motion_move"], checkDesc: "Animated costume, speech bubble, and movement!" };
+            } else if (t.category === "Sound") {
+              instruction = `Play a sound effect ('Meow', 'Coin', or 'Laser'), play a drum beat, and move ${c * 25} steps!`;
+              hint = "Add 'play sound', 'play drum', and 'move' blocks.";
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "sound_play", params: { sound: "Coin" } }];
+              validator = { minBlocks: 3, requiredTypes: ["sound_play", "motion_move"], checkDesc: "Played synthesized audio with stage motion!" };
+            } else if (t.category === "Control" || t.category === "Events") {
+              const reps = Math.min(6, c + 1);
+              instruction = `Use a 'repeat (${reps})' loop to move forward and switch costume or turn!`;
+              hint = `Add 'repeat (${reps})' from Control and nest 'move (25)' + 'next costume' inside.`;
+              starterBlocks = [{ type: "event_flag", params: {} }];
+              validator = { minBlocks: 3, requiredTypes: ["control_repeat", "motion_move"], minMovedTotal: 40, checkDesc: `Executed ${reps}-iteration loop smoothly!` };
+            } else if (t.category === "Sensing") {
+              instruction = `Reset the timer, move ${c * 30} steps across the stage, and announce 'Scan Complete!' with 'say'.`;
+              hint = "Combine 'reset timer', 'move', and 'say'.";
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "sensing_reset_timer", params: {} }];
+              validator = { minBlocks: 3, requiredTypes: ["sensing_reset_timer", "motion_move", "looks_say"], checkDesc: "Timer reset and sensing routine verified!" };
+            } else if (t.category === "Pen") {
+              instruction = `Put Pen Down, draw at least ${c + 2} connected line segments, and earn +${c * 20} score points!`;
+              hint = "Use 'pen down', 'repeat', 'move', 'turn right', and 'change [score] by'.";
+              starterBlocks = [{ type: "event_flag", params: {} }, { type: "pen_clear", params: {} }, { type: "pen_down", params: {} }];
+              validator = { minBlocks: 5, requiredTypes: ["pen_down", "motion_move", "var_change"], minPenStrokes: 2, minScore: c * 20, checkDesc: "Rendered pen geometry and updated score!" };
+            } else {
+              instruction = `Move your sprite ${c * 30} steps, change its size or costume, and add ${c * 10} score points!`;
+              hint = "Stack Motion, Looks, and Operators/Score blocks under the Green Flag.";
+              starterBlocks = [{ type: "event_flag", params: {} }];
+              validator = { minBlocks: 3, requiredTypes: ["motion_move", "var_change"], minScore: c * 10, checkDesc: `Completed ${t.title} Level ${c}!` };
+            }
+
+            return {
+              id,
+              topicId: t.id,
+              number: c,
+              title,
+              difficulty: tier.diff,
+              xp: tier.xp,
+              instruction,
+              hint,
+              starterBlocks,
+              validator
+            };
+          });
+
+          return { ...t, challenges };
+        });
+      }
+
+      const CURRICULUM = buildFullCurriculum();
+
+      /* -------------------------------------------------------------------
+         2. BLOCK PALETTE & CATALOG
+      -------------------------------------------------------------------- */
+      const PALETTE_CATEGORIES = [
+        { id: "Motion", label: "Motion", color: "#4C97FF", icon: "fa-arrows-up-down-left-right" },
+        { id: "Looks", label: "Looks", color: "#9966FF", icon: "fa-eye" },
+        { id: "Sound", label: "Sound", color: "#CF63CF", icon: "fa-volume-high" },
+        { id: "Events", label: "Events", color: "#FFBF00", icon: "fa-bolt" },
+        { id: "Control", label: "Control", color: "#FFAB19", icon: "fa-repeat" },
+        { id: "Sensing", label: "Sensing", color: "#5CB1D6", icon: "fa-crosshairs" },
+        { id: "Operators", label: "Operators", color: "#59C059", icon: "fa-calculator" },
+        { id: "Pen", label: "Pen", color: "#0FBD8C", icon: "fa-pen-nib" }
+      ];
+
+      const BLOCK_DEFS = {
+        motion_move: { category: "Motion", color: "#4C97FF", label: "move {steps} steps", defaults: { steps: 40 } },
+        motion_turn_right: { category: "Motion", color: "#4C97FF", label: "turn ↻ {deg} degrees", defaults: { deg: 90 } },
+        motion_turn_left: { category: "Motion", color: "#4C97FF", label: "turn ↺ {deg} degrees", defaults: { deg: 90 } },
+        motion_goto: { category: "Motion", color: "#4C97FF", label: "go to x: {x} y: {y}", defaults: { x: 0, y: 0 } },
+        motion_glide: { category: "Motion", color: "#4C97FF", label: "glide {secs} secs to x: {x} y: {y}", defaults: { secs: 0.7, x: 80, y: 50 } },
+        motion_point: { category: "Motion", color: "#4C97FF", label: "point in direction {dir}", defaults: { dir: 90 } },
+
+        looks_say: { category: "Looks", color: "#9966FF", label: "say {text} for {secs} secs", defaults: { text: "Hello!", secs: 1 } },
+        looks_set_size: { category: "Looks", color: "#9966FF", label: "set size to {size} %", defaults: { size: 125 } },
+        looks_change_size: { category: "Looks", color: "#9966FF", label: "change size by {delta}", defaults: { delta: 15 } },
+        looks_next_costume: { category: "Looks", color: "#9966FF", label: "next costume", defaults: {} },
+        looks_color_effect: { category: "Looks", color: "#9966FF", label: "change color effect by {val}", defaults: { val: 25 } },
+
+        sound_play: { category: "Sound", color: "#CF63CF", label: "play sound [sound]", options: { sound: ["Meow", "Coin", "Laser", "Victory"] }, defaults: { sound: "Meow" } },
+        sound_drum: { category: "Sound", color: "#CF63CF", label: "play drum [drum] for {beats} beats", options: { drum: ["Snare", "Kick", "Hi-Hat"] }, defaults: { drum: "Snare", beats: 0.25 } },
+
+        event_flag: { category: "Events", color: "#FFBF00", isHat: true, label: "when 🚩 Green Flag clicked", defaults: {} },
+        event_space: { category: "Events", color: "#FFBF00", isHat: true, label: "when [key] key pressed", options: { key: ["space", "up arrow", "right arrow"] }, defaults: { key: "space" } },
+
+        control_wait: { category: "Control", color: "#FFAB19", label: "wait {secs} seconds", defaults: { secs: 0.4 } },
+        control_repeat: { category: "Control", color: "#FFAB19", isCBlock: true, label: "repeat {times} times", defaults: { times: 4 } },
+        control_if_edge: { category: "Control", color: "#FFAB19", isCBlock: true, label: "if <touching edge?> then", defaults: {} },
+
+        sensing_ask: { category: "Sensing", color: "#5CB1D6", label: "ask {question} and wait", defaults: { question: "Ready to code?" } },
+        sensing_reset_timer: { category: "Sensing", color: "#5CB1D6", label: "reset timer", defaults: {} },
+
+        op_random_move: { category: "Operators", color: "#59C059", label: "move pick random {min} to {max} steps", defaults: { min: 15, max: 60 } },
+        var_set: { category: "Operators", color: "#FF8C1A", label: "set [score] to {val}", defaults: { val: 0 } },
+        var_change: { category: "Operators", color: "#FF8C1A", label: "change [score] by {val}", defaults: { val: 15 } },
+
+        pen_down: { category: "Pen", color: "#0FBD8C", label: "pen down", defaults: {} },
+        pen_up: { category: "Pen", color: "#0FBD8C", label: "pen up", defaults: {} },
+        pen_clear: { category: "Pen", color: "#0FBD8C", label: "erase all pen drawings", defaults: {} },
+        pen_color: { category: "Pen", color: "#0FBD8C", label: "set pen color to [pcolor]", options: { pcolor: ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"] }, defaults: { pcolor: "#3B82F6" } },
+        pen_stamp: { category: "Pen", color: "#0FBD8C", label: "stamp sprite", defaults: {} }
+      };
+
+      /* -------------------------------------------------------------------
+         3. STATE MANAGEMENT & LOCALSTORAGE PERSISTENCE
+      -------------------------------------------------------------------- */
+      const STORAGE_KEY = "scratchcraft_lms_v3_clean";
+
+      function createDefaultState() {
+        return {
+          showLogin: true,
+          currentRole: "student",
+          vendorUnlocked: false,
+          subView: "roadmap",
+          activeTopicId: 1,
+          activeChallengeId: "1-1",
+          activePaletteCategory: "Motion",
+          showGrid: true,
+          teacherSectionFilter: "ALL",
+
+          student: {
+            id: "st-1",
+            name: "Maya Lin",
+            username: "maya.lin",
+            section: "Grade 5 - Einstein",
+            xp: 1450,
+            streak: 7,
+            completedChallenges: [
+              "1-1", "1-2", "1-3", "1-4", "1-5", "1-6",
+              "2-1", "2-2", "2-3", "2-4", "2-5", "2-6",
+              "3-1", "3-2"
+            ],
+            certificates: [
+              { id: "CERT-101", challengeId: "1-1", title: "1.1 Take Your First Steps", topicTitle: "Motion & Coordinates", date: "Nov 20, 2026", xp: 50 },
+              { id: "CERT-106", challengeId: "1-6", title: "1.6 Square Patrol Boss", topicTitle: "Motion & Coordinates", date: "Nov 21, 2026", xp: 150 },
+              { id: "CERT-206", challengeId: "2-6", title: "2.6 Looks & Costumes: Topic Boss Challenge", topicTitle: "Looks & Costumes", date: "Nov 23, 2026", xp: 150 }
+            ],
+            topicDiscussions: {
+              1: [
+                { author: "Maya Lin", role: "Student", time: "2 days ago", text: "Turning 90 degrees right four times makes a full square! I tested it with 55 steps per side." },
+                { author: "Mr. David Rivera", role: "Teacher", time: "1 day ago", text: "Great observation, Maya! 4 × 90° = 360°, returning your sprite to its exact starting angle." }
+              ]
+            },
+            savedProjects: [
+              {
+                id: "proj-1",
+                title: "Hexagon Pen Spirograph",
+                date: "Nov 22, 2026",
+                blocks: [
+                  { type: "event_flag", params: {} },
+                  { type: "pen_clear", params: {} },
+                  { type: "pen_down", params: {} },
+                  { type: "pen_color", params: { pcolor: "#8B5CF6" } },
+                  {
+                    type: "control_repeat",
+                    params: { times: 6 },
+                    children: [
+                      { type: "motion_move", params: { steps: 55 } },
+                      { type: "motion_turn_right", params: { deg: 60 } }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+
+          teacher: {
+            name: "Mr. David Rivera",
+            email: "d.rivera@oakridge.edu",
+            school: "Oakridge STEM Elementary",
+            sections: [
+              { id: "sec-1", name: "Grade 5 - Einstein", room: "STEM Lab 204", schedule: "Mon / Wed 10:00 AM" },
+              { id: "sec-2", name: "Grade 5 - Hopper", room: "STEM Lab 204", schedule: "Tue / Thu 1:30 PM" },
+              { id: "sec-3", name: "Grade 6 - Newton", room: "Innovation Hub", schedule: "Fri 9:00 AM" }
+            ],
+            students: [
+              { id: "st-1", name: "Maya Lin", username: "maya.lin", password: "scratch123", section: "Grade 5 - Einstein", avatar: "ML", completed: 14, xp: 1450, certs: 3, currentTopic: "Topic 3: Sound & Music", sampleCode: "when Flag -> play sound [Coin] -> move 50 steps" },
+              { id: "st-2", name: "Liam O'Connor", username: "liam.o", password: "liam2026", section: "Grade 5 - Einstein", avatar: "LO", completed: 24, xp: 2190, certs: 5, currentTopic: "Topic 5: Repeat Loops", sampleCode: "when Flag -> repeat (4) [ move 55 -> turn right 90 ]" },
+              { id: "st-3", name: "Sofia Patel", username: "sofia.p", password: "sofia2026", section: "Grade 5 - Hopper", avatar: "SP", completed: 36, xp: 3420, certs: 8, currentTopic: "Topic 7: Sensing", sampleCode: "when Flag -> pen down -> repeat (6) [ move 45 -> turn 60 ]" },
+              { id: "st-4", name: "Noah Kim", username: "noah.k", password: "noah2026", section: "Grade 5 - Hopper", avatar: "NK", completed: 9, xp: 810, certs: 2, currentTopic: "Topic 2: Looks & Costumes", sampleCode: "when Flag -> next costume -> say [Hello!] for 1 secs" },
+              { id: "st-5", name: "Ava Morales", username: "ava.m", password: "ava2026", section: "Grade 6 - Newton", avatar: "AM", completed: 18, xp: 1760, certs: 4, currentTopic: "Topic 4: Events", sampleCode: "when Flag -> glide 0.7 secs to x: 80 y: 50" }
+            ],
+            assignments: [
+              { id: "as-1", title: "Week 1: Motion & Coordinates Mastery", topicRange: "Topics 1–2 (12 Challenges)", dueDate: "Nov 28, 2026", status: "Active" },
+              { id: "as-2", title: "Week 2: Sound, Events & Repeat Loops", topicRange: "Topics 3–5 (18 Challenges)", dueDate: "Dec 05, 2026", status: "Active" }
+            ]
+          },
+
+          vendor: {
+            disabledTopics: [],
+            schools: [
+              { id: "sch-1", name: "Oakridge STEM Elementary", district: "Metro Unified", plan: "District Pro", seatsUsed: 420, seatsTotal: 500, teachers: 18, mrr: 1250 },
+              { id: "sch-2", name: "Horizon Charter Academy", district: "North Valley", plan: "School Plus", seatsUsed: 285, seatsTotal: 300, teachers: 12, mrr: 790 },
+              { id: "sch-3", name: "Maplewood Middle School", district: "Metro Unified", plan: "District Pro", seatsUsed: 610, seatsTotal: 750, teachers: 24, mrr: 1850 }
+            ]
+          }
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return createDefaultState();
+          const parsed = JSON.parse(raw);
+          const base = createDefaultState();
+          return {
+            ...base,
+            ...parsed,
+            student: { ...base.student, ...(parsed.student || {}) },
+            teacher: { ...base.teacher, ...(parsed.teacher || {}) },
+            vendor: { ...base.vendor, ...(parsed.vendor || {}) }
+          };
+        } catch (err) {
+          return createDefaultState();
+        }
+      }
+
+      let state = loadState();
+      let workspaceBlocks = [];
+      let activeCBlockId = null;
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          // Safe fallback if storage quota exceeded
+        }
+      }
+
+      /* -------------------------------------------------------------------
+         4. TOASTS, MODALS, AUDIO SYNTH & CONFETTI ENGINE
+      -------------------------------------------------------------------- */
+      function showToast(msg, type = "info") {
+        const box = document.getElementById("toast-container");
+        if (!box) return;
+        const el = document.createElement("div");
+        const bg = type === "success" ? "bg-emerald-600 text-white" : type === "warning" ? "bg-amber-500 text-white" : "bg-slate-900 text-white";
+        const icon = type === "success" ? "fa-circle-check" : type === "warning" ? "fa-triangle-exclamation" : "fa-circle-info";
+        el.className = `${bg} px-4 py-3 rounded-2xl shadow-lg text-xs sm:text-sm font-semibold flex items-center gap-2.5 animate-pop`;
+        el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`;
+        box.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = "0";
+          el.style.transition = "opacity 0.25s";
+          setTimeout(() => el.remove(), 260);
+        }, 2800);
+      }
+
+      function showModal(html) {
+        const modal = document.getElementById("app-modal");
+        const body = document.getElementById("app-modal-body");
+        if (!modal || !body) return;
+        body.innerHTML = html;
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      }
+
+      function closeModal() {
+        const modal = document.getElementById("app-modal");
+        if (!modal) return;
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+
+      let audioCtx = null;
+      function playSynthSound(kind) {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          if (!audioCtx) audioCtx = new AC();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          const now = audioCtx.currentTime;
+
+          if (kind === "Victory") {
+            [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.type = "triangle";
+              osc.frequency.setValueAtTime(freq, now + i * 0.08);
+              gain.gain.setValueAtTime(0.18, now + i * 0.08);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.26);
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.start(now + i * 0.08);
+              osc.stop(now + i * 0.08 + 0.27);
+            });
+            return;
+          }
+
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          if (kind === "Meow") {
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(780, now + 0.12);
+            osc.frequency.exponentialRampToValueAtTime(380, now + 0.32);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+            osc.start(now);
+            osc.stop(now + 0.34);
+          } else if (kind === "Laser") {
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(960, now);
+            osc.frequency.exponentialRampToValueAtTime(160, now + 0.24);
+            gain.gain.setValueAtTime(0.16, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
+          } else {
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(987.77, now);
+            osc.frequency.setValueAtTime(1318.51, now + 0.08);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.start(now);
+            osc.stop(now + 0.29);
+          }
+        } catch (e) {
+          // Ignore audio restrictions
+        }
+      }
+
+      let confettiAnimId = null;
+      function launchConfetti() {
+        const canvas = document.getElementById("confetti-canvas");
+        if (!canvas) return;
+        if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+        const palette = ["#4C97FF", "#9966FF", "#FFBF00", "#59C059", "#0FBD8C", "#F43F5E", "#EC4899"];
+
+        const particles = Array.from({ length: 150 }, () => ({
+          x: Math.random() * canvas.width,
+          y: -20 - Math.random() * 220,
+          w: 9 + Math.random() * 7,
+          h: 6 + Math.random() * 6,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          vx: -2.8 + Math.random() * 5.6,
+          vy: 3.4 + Math.random() * 4.8,
+          rot: Math.random() * 360,
+          vrot: -8 + Math.random() * 16
+        }));
+
+        let frame = 0;
+        function step() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          particles.forEach((p) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vrot;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rot * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+          });
+          frame++;
+          if (frame < 145) {
+            confettiAnimId = requestAnimationFrame(step);
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            confettiAnimId = null;
+          }
+        }
+        confettiAnimId = requestAnimationFrame(step);
+      }
+
+      /* -------------------------------------------------------------------
+         5. HERO SLIDESHOW ENGINE (4 Interactive Slides)
+      -------------------------------------------------------------------- */
+      const HERO_SLIDES = [
+        {
+          badge: "30-Topic Scratch Curriculum",
+          title: "Master Visual Coding Through 180 Interactive Challenges",
+          desc: "Students progress step-by-step across 30 authentic Scratch topics—from Motion & Coordinates to Pen Geometry, Physics, and a Capstone Arcade Game.",
+          ctaLabel: "Explore 30-Topic Roadmap",
+          ctaAction: "quick-demo-student",
+          previewHeader: "Curriculum Progress Sneak Peek",
+          cards: [
+            { icon: "fa-arrows-up-down-left-right", bg: "bg-blue-500", title: "Topic 1: Motion & Coordinates", sub: "6/6 Challenges Solved • +535 XP" },
+            { icon: "fa-pen-nib", bg: "bg-emerald-500", title: "Topic 13: Pen Drawing & Geometry", sub: "Draw Polygons & Spirographs" },
+            { icon: "fa-trophy", bg: "bg-rose-500", title: "Topic 30: Capstone Arcade Game", sub: "Build Your Complete Master Game" }
+          ]
+        },
+        {
+          badge: "Interactive Scratch Block Playground",
+          title: "Snap Colorful Blocks & Watch Live Stage Action",
+          desc: "Click or drag blocks into your script workspace, nest Repeat C-loops, synthesize Web Audio music, draw colorful trails, and get instant automated grading.",
+          ctaLabel: "Try Block Coding Studio",
+          ctaAction: "quick-demo-playground",
+          previewHeader: "Live Block Studio Sneak Peek",
+          blocks: [
+            { color: "#FFBF00", text: "when 🚩 Green Flag clicked", hat: true },
+            { color: "#0FBD8C", text: "pen down" },
+            { color: "#FFAB19", text: "repeat (6) times → move 50, turn 60°" },
+            { color: "#9966FF", text: "say [Hexagon Complete!] for 1.5 secs" }
+          ]
+        },
+        {
+          badge: "10-Minute Reading & Guided Discussion",
+          title: "Bite-Sized Lessons Designed for Classroom Learning",
+          desc: "Every single topic includes a structured 10-minute reading lesson with real-world analogies, key block explanations, and an interactive classroom discussion board.",
+          ctaLabel: "Preview 10-Min Lesson",
+          ctaAction: "quick-demo-lesson",
+          previewHeader: "10-Minute Learning Module",
+          cards: [
+            { icon: "fa-book-open", bg: "bg-indigo-500", title: "4-Min Core Concept & Analogy", sub: "Clear visual explanations for kids" },
+            { icon: "fa-cubes", bg: "bg-amber-500", title: "3-Min Block Breakdown", sub: "Understand how every block behaves" },
+            { icon: "fa-comments", bg: "bg-cyan-500", title: "3-Min Class Discussion Board", sub: "Students & teachers share insights" }
+          ]
+        },
+        {
+          badge: "Teacher Management & Challenge Certificates",
+          title: "Sections, Student Passwords, Scores & Printable Awards",
+          desc: "Teachers can create class sections, add/edit/delete students with custom login passwords, manage scores, and celebrate every solved challenge with confetti and certificates!",
+          ctaLabel: "Launch Teacher Portal Demo",
+          ctaAction: "quick-demo-teacher",
+          previewHeader: "Educator & Certificate Suite",
+          cards: [
+            { icon: "fa-layer-group", bg: "bg-purple-500", title: "Sections & Student Passwords", sub: "Create accounts & assign sections" },
+            { icon: "fa-star-half-stroke", bg: "bg-blue-500", title: "Score & XP Management", sub: "Adjust student grades & inspect code" },
+            { icon: "fa-award", bg: "bg-amber-500", title: "Per-Challenge Certificates", sub: "Confetti burst + printable certificates" }
+          ]
+        }
+      ];
+
+      let heroIndex = 0;
+
+      function renderHeroSlideshow() {
+        const stage = document.getElementById("hero-slide-stage");
+        const dots = document.getElementById("hero-slide-dots");
+        if (!stage || !dots) return;
+
+        const s = HERO_SLIDES[heroIndex];
+        stage.innerHTML = `
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-pop">
+            <div class="lg:col-span-7 space-y-4">
+              <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-300 text-xs font-extrabold uppercase tracking-wider">
+                <i class="fa-solid fa-sparkles"></i> ${s.badge}
+              </div>
+              <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-white">
+                ${s.title}
+              </h1>
+              <p class="text-blue-100 text-sm sm:text-base leading-relaxed max-w-2xl">
+                ${s.desc}
+              </p>
+              <div class="pt-2 flex flex-wrap items-center gap-3">
+                <button type="button" data-action="${s.ctaAction}" class="px-6 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-extrabold text-sm shadow-lg transition flex items-center gap-2">
+                  ${s.ctaLabel} <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button type="button" data-action="scroll-login-student" class="px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition">
+                  Sign In Below
+                </button>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5">
+              <div class="bg-slate-950/65 border border-white/15 rounded-2xl p-5 shadow-inner">
+                <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+                  <span class="text-xs font-extrabold uppercase tracking-wider text-blue-300">${s.previewHeader}</span>
+                  <div class="flex gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                  </div>
+                </div>
+                ${
+                  s.blocks
+                    ? `<div class="space-y-2.5">
+                        ${s.blocks
+                          .map(
+                            (b) => `
+                          <div class="px-4 py-2.5 text-white font-bold text-xs shadow-md ${b.hat ? "rounded-t-2xl rounded-b-lg" : "rounded-lg ml-3"}" style="background-color:${b.color};">
+                            ${b.text}
+                          </div>`
+                          )
+                          .join("")}
+                      </div>`
+                    : `<div class="space-y-3">
+                        ${s.cards
+                          .map(
+                            (c) => `
+                          <div class="bg-white/10 border border-white/10 p-3 rounded-xl flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${c.bg} text-white flex items-center justify-center shrink-0">
+                              <i class="fa-solid ${c.icon}"></i>
+                            </div>
+                            <div>
+                              <div class="font-bold text-sm text-white">${c.title}</div>
+                              <div class="text-xs text-blue-200">${c.sub}</div>
+                            </div>
+                          </div>`
+                          )
+                          .join("")}
+                      </div>`
+                }
+              </div>
+            </div>
+          </div>
+        `;
+
+        dots.innerHTML = HERO_SLIDES.map(
+          (_, idx) => `
+          <button type="button" data-action="hero-goto" data-index="${idx}" class="h-2.5 rounded-full transition-all ${
+            idx === heroIndex ? "w-8 bg-amber-400" : "w-2.5 bg-white/30 hover:bg-white/60"
+          }" title="Slide ${idx + 1}"></button>`
+        ).join("");
+      }
+
+      /* -------------------------------------------------------------------
+         6. STAGE CANVAS & BLOCK INTERPRETER ENGINE
+      -------------------------------------------------------------------- */
+      const COSTUMES = [
+        { name: "Byte Cat", emoji: "🐱", color: "#FF9F1C" },
+        { name: "Astro Rocket", emoji: "🚀", color: "#3B82F6" },
+        { name: "Spark Bot", emoji: "🤖", color: "#6366F1" },
+        { name: "Rex Dino", emoji: "🦖", color: "#10B981" }
+      ];
+
+      let stage = {
+        x: 0,
+        y: 0,
+        direction: 90,
+        size: 100,
+        colorHue: 0,
+        costumeIdx: 0,
+        speech: "",
+        penDown: false,
+        penColor: "#3B82F6",
+        strokes: [],
+        stamps: [],
+        score: 0,
+        timerStart: Date.now(),
+        totalMoved: 0,
+        runId: 0
+      };
+
+      function resetStage() {
+        stage.runId++;
+        stage.x = 0;
+        stage.y = 0;
+        stage.direction = 90;
+        stage.size = 100;
+        stage.colorHue = 0;
+        stage.speech = "";
+        stage.penDown = false;
+        stage.strokes = [];
+        stage.stamps = [];
+        stage.score = 0;
+        stage.timerStart = Date.now();
+        stage.totalMoved = 0;
+        drawStage();
+        updateStageHUD();
+      }
+
+      function updateStageHUD() {
+        const xEl = document.getElementById("hud-x");
+        const yEl = document.getElementById("hud-y");
+        const dEl = document.getElementById("hud-dir");
+        const sEl = document.getElementById("hud-score");
+        const tEl = document.getElementById("hud-timer");
+        if (xEl) xEl.textContent = Math.round(stage.x);
+        if (yEl) yEl.textContent = Math.round(stage.y);
+        if (dEl) dEl.textContent = `${Math.round(stage.direction)}°`;
+        if (sEl) sEl.textContent = stage.score;
+        if (tEl) tEl.textContent = ((Date.now() - stage.timerStart) / 1000).toFixed(1) + "s";
+      }
+
+      function drawStage() {
+        const canvas = document.getElementById("stage-canvas");
+        if (!canvas) return;
+        const parent = canvas.parentElement;
+        if (parent) {
+          const rect = parent.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+          }
+        }
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+
+        if (state.showGrid) {
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.lineWidth = 1;
+          const step = 30;
+          for (let gx = cx % step; gx < w; gx += step) {
+            ctx.beginPath();
+            ctx.moveTo(gx, 0);
+            ctx.lineTo(gx, h);
+            ctx.stroke();
+          }
+          for (let gy = cy % step; gy < h; gy += step) {
+            ctx.beginPath();
+            ctx.moveTo(0, gy);
+            ctx.lineTo(w, gy);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(cx, 0);
+          ctx.lineTo(cx, h);
+          ctx.moveTo(0, cy);
+          ctx.lineTo(w, cy);
+          ctx.stroke();
+
+          ctx.fillStyle = "#64748b";
+          ctx.font = "bold 10px Inter, sans-serif";
+          ctx.fillText("+Y", cx + 6, 14);
+          ctx.fillText("-Y", cx + 6, h - 6);
+          ctx.fillText("+X", w - 22, cy - 6);
+          ctx.fillText("-X", 6, cy - 6);
+        }
+
+        // Pen Strokes
+        stage.strokes.forEach((st) => {
+          ctx.strokeStyle = st.color;
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(cx + st.x1, cy - st.y1);
+          ctx.lineTo(cx + st.x2, cy - st.y2);
+          ctx.stroke();
+        });
+
+        // Stamps
+        stage.stamps.forEach((sp) => {
+          const cObj = COSTUMES[sp.costumeIdx % COSTUMES.length];
+          ctx.save();
+          ctx.translate(cx + sp.x, cy - sp.y);
+          ctx.globalAlpha = 0.65;
+          ctx.font = `${Math.round(34 * (sp.size / 100))}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(cObj.emoji, 0, 0);
+          ctx.restore();
+        });
+
+        // Active Sprite
+        const sx = cx + stage.x;
+        const sy = cy - stage.y;
+        const scale = stage.size / 100;
+        const costume = COSTUMES[stage.costumeIdx % COSTUMES.length];
+
+        ctx.save();
+        ctx.translate(sx, sy);
+        if (stage.colorHue !== 0) {
+          ctx.filter = `hue-rotate(${stage.colorHue}deg)`;
+        }
+        ctx.rotate(((stage.direction - 90) * Math.PI) / 180);
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = costume.color + "28";
+        ctx.beginPath();
+        ctx.arc(0, 0, 26, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = costume.color;
+        ctx.beginPath();
+        ctx.moveTo(28, 0);
+        ctx.lineTo(19, -6);
+        ctx.lineTo(19, 6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.font = "36px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(costume.emoji, 0, 2);
+        ctx.restore();
+
+        // Speech Bubble
+        if (stage.speech) {
+          ctx.save();
+          ctx.font = "bold 12px Inter, sans-serif";
+          const tw = ctx.measureText(stage.speech).width;
+          const bw = Math.max(66, tw + 22);
+          const bh = 30;
+          const bx = Math.min(Math.max(8, sx - bw / 2), w - bw - 8);
+          const by = Math.max(8, sy - 42 * scale - bh);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#9966FF";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(bx, by, bw, bh, 12);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#1e293b";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(stage.speech, bx + bw / 2, by + bh / 2);
+          ctx.restore();
+        }
+      }
+
+      function waitMs(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      function moveSprite(steps) {
+        const px = stage.x;
+        const py = stage.y;
+        const rad = ((90 - stage.direction) * Math.PI) / 180;
+        let nx = Math.max(-210, Math.min(210, px + Math.cos(rad) * steps));
+        let ny = Math.max(-145, Math.min(145, py + Math.sin(rad) * steps));
+        const dist = Math.hypot(nx - px, ny - py);
+        stage.totalMoved += dist;
+        stage.x = nx;
+        stage.y = ny;
+        if (stage.penDown && dist > 0.1) {
+          stage.strokes.push({ x1: px, y1: py, x2: nx, y2: ny, color: stage.penColor });
+        }
+      }
+
+      async function executeBlocks(blocks, runToken, fast) {
+        for (const b of blocks) {
+          if (stage.runId !== runToken) return;
+          document.querySelectorAll(".scratch-block.executing").forEach((el) => el.classList.remove("executing"));
+          const domEl = document.querySelector(`[data-block-id="${b.id}"]`);
+          if (domEl) domEl.classList.add("executing");
+
+          const p = b.params || {};
+          switch (b.type) {
+            case "motion_move":
+              moveSprite(Number(p.steps) || 0);
+              break;
+            case "motion_turn_right":
+              stage.direction = ((stage.direction + (Number(p.deg) || 0) + 180) % 360) - 180;
+              break;
+            case "motion_turn_left":
+              stage.direction = ((stage.direction - (Number(p.deg) || 0) + 180) % 360) - 180;
+              break;
+            case "motion_goto": {
+              const px = stage.x;
+              const py = stage.y;
+              const nx = Math.max(-210, Math.min(210, Number(p.x) || 0));
+              const ny = Math.max(-145, Math.min(145, Number(p.y) || 0));
+              stage.totalMoved += Math.hypot(nx - px, ny - py);
+              stage.x = nx;
+              stage.y = ny;
+              if (stage.penDown) {
+                stage.strokes.push({ x1: px, y1: py, x2: nx, y2: ny, color: stage.penColor });
+              }
+              break;
+            }
+            case "motion_glide": {
+              const secs = Math.max(0.1, Number(p.secs) || 0.5);
+              const steps = fast ? 3 : Math.max(6, Math.round(secs * 18));
+              const sx = stage.x;
+              const sy = stage.y;
+              const tx = Math.max(-210, Math.min(210, Number(p.x) || 0));
+              const ty = Math.max(-145, Math.min(145, Number(p.y) || 0));
+              for (let i = 1; i <= steps; i++) {
+                if (stage.runId !== runToken) return;
+                const t = i / steps;
+                const px = stage.x;
+                const py = stage.y;
+                stage.x = sx + (tx - sx) * t;
+                stage.y = sy + (ty - sy) * t;
+                stage.totalMoved += Math.hypot(stage.x - px, stage.y - py);
+                if (stage.penDown) {
+                  stage.strokes.push({ x1: px, y1: py, x2: stage.x, y2: stage.y, color: stage.penColor });
+                }
+                drawStage();
+                updateStageHUD();
+                if (!fast) await waitMs((secs * 1000) / steps);
+              }
+              break;
+            }
+            case "motion_point":
+              stage.direction = Number(p.dir) || 90;
+              break;
+            case "looks_say":
+              stage.speech = String(p.text || "Hello!");
+              drawStage();
+              if (!fast) await waitMs(Math.min(1200, (Number(p.secs) || 1) * 650));
+              stage.speech = "";
+              break;
+            case "looks_set_size":
+              stage.size = Math.max(25, Math.min(250, Number(p.size) || 100));
+              break;
+            case "looks_change_size":
+              stage.size = Math.max(25, Math.min(250, stage.size + (Number(p.delta) || 0)));
+              break;
+            case "looks_next_costume":
+              stage.costumeIdx = (stage.costumeIdx + 1) % COSTUMES.length;
+              break;
+            case "looks_color_effect":
+              stage.colorHue = (stage.colorHue + (Number(p.val) || 25)) % 360;
+              break;
+            case "sound_play":
+              if (!fast) playSynthSound(p.sound || "Meow");
+              break;
+            case "sound_drum":
+              if (!fast) {
+                playSynthSound("Coin");
+                await waitMs(220);
+              }
+              break;
+            case "control_wait":
+              if (!fast) await waitMs(Math.min(1200, (Number(p.secs) || 0.4) * 600));
+              break;
+            case "control_repeat": {
+              const count = Math.max(1, Math.min(24, Number(p.times) || 1));
+              for (let i = 0; i < count; i++) {
+                if (stage.runId !== runToken) return;
+                await executeBlocks(b.children || [], runToken, fast);
+              }
+              break;
+            }
+            case "control_if_edge":
+              if (Math.abs(stage.x) >= 170 || Math.abs(stage.y) >= 120) {
+                await executeBlocks(b.children || [], runToken, fast);
+              }
+              break;
+            case "sensing_ask":
+              stage.speech = String(p.question || "Ready!");
+              drawStage();
+              if (!fast) await waitMs(550);
+              stage.speech = "Answered!";
+              break;
+            case "sensing_reset_timer":
+              stage.timerStart = Date.now();
+              break;
+            case "op_random_move": {
+              const mn = Number(p.min) || 10;
+              const mx = Number(p.max) || 50;
+              moveSprite(Math.floor(Math.random() * (mx - mn + 1)) + mn);
+              break;
+            }
+            case "var_set":
+              stage.score = Number(p.val) || 0;
+              break;
+            case "var_change":
+              stage.score += Number(p.val) || 0;
+              break;
+            case "pen_down":
+              stage.penDown = true;
+              break;
+            case "pen_up":
+              stage.penDown = false;
+              break;
+            case "pen_clear":
+              stage.strokes = [];
+              stage.stamps = [];
+              break;
+            case "pen_color":
+              stage.penColor = p.pcolor || "#3B82F6";
+              break;
+            case "pen_stamp":
+              stage.stamps.push({ x: stage.x, y: stage.y, costumeIdx: stage.costumeIdx, size: stage.size });
+              break;
+          }
+
+          drawStage();
+          updateStageHUD();
+          if (!fast) await waitMs(110);
+        }
+      }
+
+      async function runScript(fast = false) {
+        resetStage();
+        const token = ++stage.runId;
+        await executeBlocks(workspaceBlocks, token, fast);
+        if (stage.runId === token) {
+          document.querySelectorAll(".scratch-block.executing").forEach((el) => el.classList.remove("executing"));
+        }
+      }
+
+      function stopScript() {
+        stage.runId++;
+        document.querySelectorAll(".scratch-block.executing").forEach((el) => el.classList.remove("executing"));
+        showToast("Execution stopped.", "info");
+      }
+
+      /* -------------------------------------------------------------------
+         7. CHALLENGE GRADING, CONFETTI & CERTIFICATE AWARDING
+      -------------------------------------------------------------------- */
+      function getActiveChallenge() {
+        for (const t of CURRICULUM) {
+          const found = t.challenges.find((c) => c.id === state.activeChallengeId);
+          if (found) return found;
+        }
+        return CURRICULUM[0].challenges[0];
+      }
+
+      function getNextChallenge(currentId) {
+        const all = CURRICULUM.flatMap((t) => t.challenges);
+        const i = all.findIndex((c) => c.id === currentId);
+        return i >= 0 && i < all.length - 1 ? all[i + 1] : null;
+      }
+
+      function flattenBlocks(list) {
+        let out = [];
+        for (const item of list) {
+          out.push(item);
+          if (item.children && item.children.length) {
+            out = out.concat(flattenBlocks(item.children));
+          }
+        }
+        return out;
+      }
+
+      async function evaluateChallenge(forceDemoPass = false) {
+        const ch = getActiveChallenge();
+        if (!ch) return;
+
+        await runScript(true);
+
+        const all = flattenBlocks(workspaceBlocks);
+        const types = new Set(all.map((b) => b.type));
+        const v = ch.validator || {};
+        const errors = [];
+
+        if (!forceDemoPass) {
+          if (v.minBlocks && all.length < v.minBlocks) {
+            errors.push(`Use at least ${v.minBlocks} blocks (currently ${all.length}).`);
+          }
+          if (v.requiredTypes) {
+            for (const req of v.requiredTypes) {
+              if (!types.has(req)) {
+                const lbl = BLOCK_DEFS[req] ? BLOCK_DEFS[req].label.replace(/\{.*?\}/g, "...") : req;
+                errors.push(`Missing required block: "${lbl}".`);
+              }
+            }
+          }
+          if (typeof v.minDistance === "number" && Math.hypot(stage.x, stage.y) < v.minDistance) {
+            errors.push(`Sprite must end at least ${v.minDistance} steps from (0,0).`);
+          }
+          if (typeof v.minMovedTotal === "number" && stage.totalMoved < v.minMovedTotal) {
+            errors.push(`Total distance traveled should be at least ${v.minMovedTotal} steps.`);
+          }
+          if (typeof v.targetDir === "number" && Math.abs(stage.direction - v.targetDir) > 5) {
+            errors.push(`Sprite direction is ${stage.direction}°, expected ${v.targetDir}°.`);
+          }
+          if (typeof v.targetX === "number" && typeof v.targetY === "number") {
+            const tol = v.tolerance || 15;
+            if (Math.abs(stage.x - v.targetX) > tol || Math.abs(stage.y - v.targetY) > tol) {
+              errors.push(`Sprite ended at (${Math.round(stage.x)}, ${Math.round(stage.y)}), target is (${v.targetX}, ${v.targetY}).`);
+            }
+          }
+          if (typeof v.minScore === "number" && stage.score < v.minScore) {
+            errors.push(`Score is ${stage.score}, expected at least ${v.minScore}.`);
+          }
+          if (typeof v.minPenStrokes === "number" && stage.strokes.length < v.minPenStrokes) {
+            errors.push(`Draw at least ${v.minPenStrokes} pen segments (currently ${stage.strokes.length}).`);
+          }
+        }
+
+        if (errors.length > 0) {
+          showModal(`
+            <div class="text-center">
+              <div class="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto mb-3">
+                <i class="fa-solid fa-lightbulb"></i>
+              </div>
+              <h3 class="font-display text-2xl font-bold text-slate-900">Keep Tinkering — Almost There!</h3>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1 mb-4">Review the check details below and update your blocks:</p>
+              <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left space-y-2 mb-4">
+                ${errors.map((e) => `<div class="text-xs sm:text-sm text-amber-900 flex items-start gap-2"><i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5"></i><span>${e}</span></div>`).join("")}
+              </div>
+              <div class="bg-slate-100 p-3 rounded-xl text-xs text-slate-600 mb-5">
+                <strong>Hint:</strong> ${ch.hint}
+              </div>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <button type="button" data-action="close-modal" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm">
+                  Back to Workspace
+                </button>
+                <button type="button" data-action="demo-pass-challenge" class="py-3 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs">
+                  Demo Pass (Preview Award)
+                </button>
+              </div>
+            </div>
+          `);
+          return;
+        }
+
+        // Challenge Passed! Fire Confetti + Victory Chime + Issue Certificate
+        playSynthSound("Victory");
+        launchConfetti();
+
+        const alreadySolved = state.student.completedChallenges.includes(ch.id);
+        if (!alreadySolved) {
+          state.student.completedChallenges.push(ch.id);
+          state.student.xp += ch.xp;
+        }
+
+        const topicObj = CURRICULUM.find((t) => t.id === ch.topicId) || CURRICULUM[0];
+        let cert = state.student.certificates.find((c) => c.challengeId === ch.id);
+        if (!cert) {
+          cert = {
+            id: "CERT-" + ch.id.replace("-", "") + "-" + Math.floor(100 + Math.random() * 900),
+            challengeId: ch.id,
+            title: ch.title,
+            topicTitle: topicObj.title,
+            date: "Nov 25, 2026",
+            xp: ch.xp
+          };
+          state.student.certificates.unshift(cert);
+        }
+
+        // Sync with Teacher Roster
+        const rosterRow = state.teacher.students.find((s) => s.id === state.student.id || s.username === state.student.username);
+        if (rosterRow) {
+          rosterRow.completed = state.student.completedChallenges.length;
+          rosterRow.xp = state.student.xp;
+          rosterRow.certs = state.student.certificates.length;
+        }
+
+        saveState();
+        updateHeaderHUD();
+
+        const nextCh = getNextChallenge(ch.id);
+        showModal(`
+          <div class="text-center">
+            <div class="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl mx-auto mb-3 shadow-inner">
+              <i class="fa-solid fa-trophy"></i>
+            </div>
+            <span class="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-extrabold uppercase tracking-wider mb-2">
+              Challenge Passed & Certificate Unlocked!
+            </span>
+            <h3 class="font-display text-2xl sm:text-3xl font-bold text-slate-900">${ch.title}</h3>
+            <p class="text-slate-600 text-sm mt-1">${v.checkDesc || "All automated challenge checks passed!"}</p>
+
+            <div class="grid grid-cols-3 gap-3 my-5">
+              <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl">
+                <div class="text-[11px] font-bold text-indigo-500 uppercase">XP Earned</div>
+                <div class="font-display text-xl font-bold text-indigo-700">${alreadySolved ? "+0" : "+" + ch.xp} XP</div>
+              </div>
+              <div class="bg-amber-50 border border-amber-100 p-3 rounded-2xl">
+                <div class="text-[11px] font-bold text-amber-600 uppercase">Mastery</div>
+                <div class="font-display text-xl font-bold text-amber-700">${state.student.completedChallenges.length}/180</div>
+              </div>
+              <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl">
+                <div class="text-[11px] font-bold text-emerald-600 uppercase">Certificate</div>
+                <div class="font-display text-sm font-bold text-emerald-700 mt-1">${cert.id}</div>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2.5">
+              <button type="button" data-action="view-cert" data-cert-id="${cert.id}" class="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-award"></i> View & Print Certificate
+              </button>
+              ${
+                nextCh
+                  ? `<button type="button" data-action="open-challenge" data-challenge-id="${nextCh.id}" class="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                      Next Challenge <i class="fa-solid fa-arrow-right"></i>
+                     </button>`
+                  : `<button type="button" data-action="switch-subview" data-subview="certificates" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition">
+                      All Certificates
+                     </button>`
+              }
+            </div>
+            <button type="button" data-action="close-modal" class="mt-3 text-xs font-bold text-slate-400 hover:text-slate-600">
+              Stay in Workspace
+            </button>
+          </div>
+        `);
+      }
+
+      /* -------------------------------------------------------------------
+         8. WORKSPACE BLOCKS RENDERING & MANIPULATION
+      -------------------------------------------------------------------- */
+      function hydrateBlocks(rawList) {
+        return (rawList || []).map((b, i) => ({
+          id: "blk_" + Math.random().toString(36).slice(2, 8) + "_" + i,
+          type: b.type,
+          params: { ...(BLOCK_DEFS[b.type]?.defaults || {}), ...(b.params || {}) },
+          children: b.children ? hydrateBlocks(b.children) : (BLOCK_DEFS[b.type]?.isCBlock ? [] : undefined)
+        }));
+      }
+
+      function loadChallenge(challengeId) {
+        state.activeChallengeId = challengeId;
+        state.activeTopicId = Number(challengeId.split("-")[0]) || 1;
+        const ch = getActiveChallenge();
+        workspaceBlocks = hydrateBlocks(ch.starterBlocks);
+        activeCBlockId = null;
+        saveState();
+        resetStage();
+      }
+
+      function addBlock(type) {
+        const def = BLOCK_DEFS[type];
+        if (!def) return;
+        const blk = {
+          id: "blk_" + Math.random().toString(36).slice(2, 9),
+          type,
+          params: { ...def.defaults },
+          children: def.isCBlock ? [] : undefined
+        };
+
+        if (activeCBlockId && !def.isHat) {
+          const parent = workspaceBlocks.find((x) => x.id === activeCBlockId && BLOCK_DEFS[x.type]?.isCBlock);
+          if (parent) {
+            parent.children.push(blk);
+            renderWorkspace();
+            return;
+          }
+        }
+
+        workspaceBlocks.push(blk);
+        if (def.isCBlock) activeCBlockId = blk.id;
+        renderWorkspace();
+      }
+
+      function deleteBlock(id, list = workspaceBlocks) {
+        const idx = list.findIndex((b) => b.id === id);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+          if (activeCBlockId === id) activeCBlockId = null;
+          renderWorkspace();
+          return true;
+        }
+        for (const item of list) {
+          if (item.children && deleteBlock(id, item.children)) return true;
+        }
+        return false;
+      }
+
+      function moveBlockOrder(id, dir) {
+        const idx = workspaceBlocks.findIndex((b) => b.id === id);
+        if (idx === -1) return;
+        const target = idx + dir;
+        if (target < 0 || target >= workspaceBlocks.length) return;
+        const [item] = workspaceBlocks.splice(idx, 1);
+        workspaceBlocks.splice(target, 0, item);
+        renderWorkspace();
+      }
+
+      function setBlockParam(id, key, val, list = workspaceBlocks) {
+        for (const b of list) {
+          if (b.id === id) {
+            b.params[key] = val;
+            return;
+          }
+          if (b.children) setBlockParam(id, key, val, b.children);
+        }
+      }
+
+      function renderBlockHTML(b, isNested = false) {
+        const def = BLOCK_DEFS[b.type];
+        if (!def) return "";
+
+        let html = def.label.replace(/\{(\w+)\}/g, (_, k) => {
+          const v = b.params[k] ?? "";
+          const isNum = typeof def.defaults[k] === "number";
+          const wCls = isNum ? "w-14" : "w-28";
+          return `<input type="${isNum ? "number" : "text"}" step="${isNum ? "any" : ""}" value="${String(v).replace(/"/g, "&quot;")}" data-block-input="${b.id}" data-param-key="${k}" data-is-num="${isNum ? "1" : "0"}" class="block-input ${wCls} mx-1" />`;
+        });
+
+        html = html.replace(/\[(\w+)\]/g, (_, k) => {
+          const opts = def.options?.[k] || [];
+          const cur = b.params[k] || opts[0];
+          return `<select data-block-select="${b.id}" data-param-key="${k}" class="block-select mx-1">
+            ${opts.map((o) => `<option value="${o}" ${o === cur ? "selected" : ""}>${o}</option>`).join("")}
+          </select>`;
+        });
+
+        if (def.isCBlock) {
+          const isTarget = activeCBlockId === b.id;
+          return `
+            <div data-block-id="${b.id}" data-action="toggle-cblock" class="scratch-block mb-2 cursor-pointer ${isTarget ? "ring-2 ring-amber-300" : ""}" style="background-color:${def.color};">
+              <div class="px-3.5 py-2 text-white font-bold text-xs sm:text-sm flex items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center">${html}</div>
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] bg-black/20 px-2 py-0.5 rounded-full">${isTarget ? "Nesting Active" : "+ Nest"}</span>
+                  <button type="button" data-action="delete-block" data-block-id="${b.id}" class="w-6 h-6 rounded-full bg-black/20 hover:bg-rose-600 text-white flex items-center justify-center text-xs" title="Remove">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="c-block-body">
+                ${
+                  b.children && b.children.length
+                    ? b.children.map((ch) => renderBlockHTML(ch, true)).join("")
+                    : `<div class="text-[11px] text-white/85 italic py-1 px-2">Click any palette block while highlighted to nest inside this loop...</div>`
+                }
+              </div>
+              <div class="c-block-footer" style="background-color:${def.color};"></div>
+            </div>
+          `;
+        }
+
+        return `
+          <div data-block-id="${b.id}" class="scratch-block ${def.isHat ? "hat-block" : ""} px-3.5 py-2 mb-1.5 text-white font-bold text-xs sm:text-sm flex items-center justify-between gap-2" style="background-color:${def.color};">
+            <div class="flex flex-wrap items-center">${html}</div>
+            <div class="flex items-center gap-1 shrink-0">
+              ${
+                !isNested
+                  ? `<button type="button" data-action="move-block-up" data-block-id="${b.id}" class="w-5 h-5 rounded bg-black/15 hover:bg-black/30 text-white text-[10px]" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+                     <button type="button" data-action="move-block-down" data-block-id="${b.id}" class="w-5 h-5 rounded bg-black/15 hover:bg-black/30 text-white text-[10px]" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>`
+                  : ""
+              }
+              <button type="button" data-action="delete-block" data-block-id="${b.id}" class="w-6 h-6 rounded-full bg-black/20 hover:bg-rose-600 text-white flex items-center justify-center text-xs" title="Remove">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderWorkspace() {
+        const box = document.getElementById("workspace-blocks-list");
+        if (!box) return;
+        if (workspaceBlocks.length === 0) {
+          box.innerHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-300 rounded-2xl text-slate-400">
+              <i class="fa-solid fa-puzzle-piece text-3xl mb-2 text-slate-300"></i>
+              <p class="text-sm font-bold text-slate-500">Workspace is Empty</p>
+              <p class="text-xs mt-1">Click any block on the left palette to add it to your script!</p>
+            </div>
+          `;
+          return;
+        }
+        box.innerHTML = workspaceBlocks.map((b) => renderBlockHTML(b)).join("");
+      }
+
+      /* -------------------------------------------------------------------
+         9. VIEW TEMPLATES: STUDENT, TEACHER & HIDDEN VENDOR PORTALS
+      -------------------------------------------------------------------- */
+      function updateHeaderHUD() {
+        const s = document.getElementById("hdr-streak");
+        const x = document.getElementById("hdr-xp");
+        const p = document.getElementById("hdr-progress");
+        if (s) s.textContent = state.student.streak;
+        if (x) x.textContent = state.student.xp.toLocaleString();
+        if (p) p.textContent = `${state.student.completedChallenges.length}/180`;
+      }
+
+      function renderSubNav() {
+        const container = document.getElementById("subnav-container");
+        if (!container) return;
+
+        const menus = {
+          student: [
+            { id: "roadmap", label: "30-Topic Curriculum", icon: "fa-map-location-dot" },
+            { id: "playground", label: "Block Coding Studio", icon: "fa-code" },
+            { id: "projects", label: "My Projects", icon: "fa-folder-open" },
+            { id: "certificates", label: `My Certificates (${state.student.certificates.length})`, icon: "fa-award" }
+          ],
+          teacher: [
+            { id: "roster", label: "Students, Passwords & Scores", icon: "fa-users-gear" },
+            { id: "sections", label: "Sections Management", icon: "fa-layer-group" },
+            { id: "assignments", label: "Assignments & Pacing", icon: "fa-clipboard-check" }
+          ],
+          vendor: [
+            { id: "tenants", label: "School Tenants & Licenses", icon: "fa-school" },
+            { id: "modules", label: "30-Topic Module Control", icon: "fa-sliders" },
+            { id: "exit_vendor", label: "Hide Vendor Portal", icon: "fa-eye-slash" }
+          ]
+        };
+
+        const items = menus[state.currentRole] || [];
+        const rightText =
+          state.currentRole === "student"
+            ? `${state.student.name} (${state.student.section})`
+            : state.currentRole === "teacher"
+            ? `${state.teacher.name} • ${state.teacher.school}`
+            : `Enterprise Vendor Console • ${state.vendor.schools.length} Schools`;
+
+        container.innerHTML = `
+          <div class="flex items-center gap-1.5">
+            ${items
+              .map((it) => {
+                const active = state.subView === it.id;
+                const action = it.id === "exit_vendor" ? "hide-vendor-portal" : "switch-subview";
+                return `
+                  <button type="button" data-action="${action}" data-subview="${it.id}" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                    active ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70"
+                  }">
+                    <i class="fa-solid ${it.icon}"></i> ${it.label}
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+          <div class="text-xs font-semibold text-slate-500 hidden lg:block">${rightText}</div>
+        `;
+      }
+
+      /* ---------------- STUDENT: 30-TOPIC ROADMAP ---------------- */
+      function renderStudentRoadmap() {
+        const enabledTopics = CURRICULUM.filter((t) => !state.vendor.disabledTopics.includes(t.id));
+        const total = enabledTopics.length * 6;
+        const doneSet = new Set(state.student.completedChallenges);
+        const solvedCount = state.student.completedChallenges.length;
+        const pct = Math.round((solvedCount / Math.max(1, total)) * 100);
+
+        return `
+          <div class="space-y-6 animate-pop">
+            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div class="max-w-2xl">
+                <div class="inline-flex items-center gap-2 bg-white/15 px-3 py-1 rounded-full text-xs font-bold mb-2.5">
+                  <i class="fa-solid fa-graduation-cap text-amber-300"></i> ${state.student.section}
+                </div>
+                <h1 class="font-display text-2xl sm:text-3xl font-bold">Welcome back, ${state.student.name}!</h1>
+                <p class="text-blue-100 text-sm mt-1">Read each topic's 10-minute guided lesson & class discussion, then solve all 6 challenges to unlock certificates!</p>
+                <div class="mt-5">
+                  <div class="flex justify-between text-xs font-bold mb-1.5">
+                    <span>Overall Course Mastery (${solvedCount} / ${total} Challenges)</span>
+                    <span>${pct}%</span>
+                  </div>
+                  <div class="w-full h-3 bg-black/25 rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width:${pct}%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="shrink-0">
+                <button type="button" data-action="open-challenge" data-challenge-id="${state.activeChallengeId}" class="px-5 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-extrabold text-sm shadow-md transition flex items-center gap-2">
+                  <i class="fa-solid fa-play"></i> Continue Current Challenge
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter & Search -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-bold text-slate-400 uppercase mr-1">Filter:</span>
+                <button type="button" data-action="filter-topics" data-cat="ALL" class="topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white">All 30 Topics</button>
+                <button type="button" data-action="filter-topics" data-cat="Motion" class="topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">Motion</button>
+                <button type="button" data-action="filter-topics" data-cat="Looks" class="topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">Looks & Sound</button>
+                <button type="button" data-action="filter-topics" data-cat="Control" class="topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">Control & Loops</button>
+                <button type="button" data-action="filter-topics" data-cat="Pen" class="topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">Pen & Capstone</button>
+              </div>
+              <div class="relative w-full sm:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input id="topic-search-box" type="text" placeholder="Search 30 topics..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+
+            <!-- 30 Topic Cards -->
+            <div id="topics-card-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              ${enabledTopics
+                .map((t) => {
+                  const doneInTopic = t.challenges.filter((c) => doneSet.has(c.id)).length;
+                  const mastered = doneInTopic === 6;
+                  return `
+                    <div class="topic-item-card bg-white rounded-3xl border ${mastered ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200/90"} p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between" data-cat="${t.category}" data-search="${t.title.toLowerCase()} ${t.desc.toLowerCase()}">
+                      <div>
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                          <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-2xl text-white flex items-center justify-center text-lg shrink-0" style="background-color:${t.color};">
+                              <i class="fa-solid ${t.icon}"></i>
+                            </div>
+                            <div>
+                              <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-extrabold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">Topic ${t.id}</span>
+                                <span class="text-[11px] font-bold" style="color:${t.color};">${t.category}</span>
+                              </div>
+                              <h3 class="font-display font-bold text-base text-slate-900 mt-0.5">${t.title}</h3>
+                            </div>
+                          </div>
+                          <span class="text-xs font-extrabold px-2.5 py-1 rounded-full ${mastered ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}">
+                            ${doneInTopic}/6
+                          </span>
+                        </div>
+
+                        <p class="text-xs text-slate-500 leading-relaxed mb-3">${t.desc}</p>
+
+                        <button type="button" data-action="open-topic-lesson" data-topic-id="${t.id}" class="w-full mb-4 py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 text-xs font-bold transition flex items-center justify-between">
+                          <span><i class="fa-solid fa-book-open-reader mr-1.5"></i> 10-Min Read & Discussion</span>
+                          <span class="text-[10px] bg-white px-2 py-0.5 rounded-full text-indigo-600 font-extrabold">10 min</span>
+                        </button>
+                      </div>
+
+                      <div class="pt-3 border-t border-slate-100">
+                        <div class="text-[11px] font-bold text-slate-400 uppercase mb-2">6 Challenges — Click to Code:</div>
+                        <div class="grid grid-cols-6 gap-1.5">
+                          ${t.challenges
+                            .map((ch) => {
+                              const solved = doneSet.has(ch.id);
+                              const current = state.activeChallengeId === ch.id;
+                              return `
+                                <button type="button" data-action="open-challenge" data-challenge-id="${ch.id}" title="${ch.title} (+${ch.xp} XP)" class="h-9 rounded-xl font-bold text-xs flex items-center justify-center transition border ${
+                                  solved
+                                    ? "bg-emerald-500 border-emerald-600 text-white shadow-sm hover:bg-emerald-600"
+                                    : current
+                                    ? "bg-blue-600 border-blue-700 text-white ring-2 ring-blue-200"
+                                    : "bg-slate-50 border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50"
+                                }">
+                                  ${solved ? '<i class="fa-solid fa-check"></i>' : ch.number}
+                                </button>
+                              `;
+                            })
+                            .join("")}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      /* ---------------- 10-MINUTE TOPIC READING & DISCUSSION MODAL ---------------- */
+      function openTopicLessonModal(topicId) {
+        const t = CURRICULUM.find((x) => x.id === topicId) || CURRICULUM[0];
+        const posts = state.student.topicDiscussions[topicId] || [
+          {
+            author: "Mr. David Rivera",
+            role: "Teacher",
+            time: "Lesson Guide",
+            text: `Welcome to Topic ${t.id}! Read the 10-minute guide above and share your reflection on the prompt below.`
+          }
+        ];
+
+        showModal(`
+          <div class="space-y-5">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center text-xl shrink-0" style="background-color:${t.color};">
+                  <i class="fa-solid ${t.icon}"></i>
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[11px] font-extrabold uppercase">Topic ${t.id} • ${t.category}</span>
+                    <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold"><i class="fa-regular fa-clock mr-1"></i>10-Minute Reading & Learning</span>
+                  </div>
+                  <h3 class="font-display text-2xl font-bold text-slate-900 mt-1">${t.title}</h3>
+                </div>
+              </div>
+              <button type="button" data-action="close-modal" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-blue-600 mb-1.5">
+                  <i class="fa-solid fa-book-open mr-1"></i> 1. Core Concept (4 Mins)
+                </div>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  ${t.desc} In Scratch, blocks snap together vertically and execute from top to bottom whenever an Event hat block triggers. Mastering <strong>${t.title}</strong> prepares you to solve all 6 challenges in this module.
+                </p>
+              </div>
+              <div class="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-amber-700 mb-1.5">
+                  <i class="fa-solid fa-lightbulb mr-1"></i> 2. Real-World Analogy (3 Mins)
+                </div>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  Think of <strong>${t.title}</strong> like: <em>"${t.analogy}"</em> Just like everyday instructions, sequence and exact values control what happens on stage.
+                </p>
+              </div>
+            </div>
+
+            <div class="bg-indigo-50/60 border border-indigo-100 p-4 rounded-2xl">
+              <div class="text-xs font-extrabold uppercase tracking-wider text-indigo-700 mb-2">
+                <i class="fa-solid fa-cubes mr-1"></i> 3. Key Blocks Featured (3 Mins)
+              </div>
+              <div class="flex flex-wrap gap-2">
+                ${t.keyBlocks
+                  .map(
+                    (kb) => `<span class="px-3 py-1.5 rounded-xl text-white font-bold text-xs shadow-sm" style="background-color:${t.color};">${kb}</span>`
+                  )
+                  .join("")}
+              </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-4">
+              <div class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 mb-1">
+                <i class="fa-solid fa-comments mr-1"></i> 4. Guided Classroom Discussion
+              </div>
+              <p class="text-sm font-semibold text-slate-800 mb-3">${t.prompt}</p>
+
+              <div class="space-y-2 max-h-40 overflow-y-auto mb-3 pr-1">
+                ${posts
+                  .map(
+                    (p) => `
+                  <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-slate-900">${p.author} <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 ml-1">${p.role}</span></span>
+                      <span class="text-slate-400 text-[11px]">${p.time}</span>
+                    </div>
+                    <p class="text-slate-600">${p.text}</p>
+                  </div>`
+                  )
+                  .join("")}
+              </div>
+
+              <div class="flex gap-2">
+                <input id="discussion-reply-input" type="text" placeholder="Share your answer or reflection with the class..." class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
+                <button type="button" data-action="post-discussion" data-topic-id="${t.id}" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition">
+                  Post Note
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+              <button type="button" data-action="close-modal" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Close Lesson</button>
+              <button type="button" data-action="open-challenge" data-challenge-id="${t.id}-1" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition">
+                Start Challenge ${t.id}.1 <i class="fa-solid fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `);
+      }
+
+      /* ---------------- STUDENT: BLOCK CODING PLAYGROUND ---------------- */
+      function renderStudentPlayground() {
+        const ch = getActiveChallenge();
+        const t = CURRICULUM.find((x) => x.id === ch.topicId) || CURRICULUM[0];
+        const solved = state.student.completedChallenges.includes(ch.id);
+        const paletteList = Object.entries(BLOCK_DEFS).filter(([_, def]) => def.category === state.activePaletteCategory);
+
+        return `
+          <div class="space-y-4 animate-pop">
+            <!-- Challenge Mission Header -->
+            <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl text-white flex items-center justify-center text-lg shrink-0" style="background-color:${t.color};">
+                  <i class="fa-solid ${t.icon}"></i>
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-extrabold uppercase text-blue-600">Topic ${t.id}: ${t.title}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600">${ch.difficulty} • +${ch.xp} XP</span>
+                    ${solved ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700"><i class="fa-solid fa-check mr-1"></i>Completed</span>` : ""}
+                  </div>
+                  <h2 class="font-display font-bold text-lg text-slate-900 mt-0.5">${ch.title}</h2>
+                  <p class="text-xs sm:text-sm text-slate-600 mt-0.5"><strong>Goal:</strong> ${ch.instruction}</p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <select id="playground-challenge-select" class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none max-w-[230px]">
+                  ${CURRICULUM.map(
+                    (top) => `
+                    <optgroup label="Topic ${top.id}: ${top.title}">
+                      ${top.challenges
+                        .map(
+                          (c) => `<option value="${c.id}" ${c.id === ch.id ? "selected" : ""}>
+                            ${state.student.completedChallenges.includes(c.id) ? "✓ " : ""}${c.title}
+                          </option>`
+                        )
+                        .join("")}
+                    </optgroup>`
+                  ).join("")}
+                </select>
+
+                <button type="button" data-action="show-hint" class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold transition">
+                  <i class="fa-solid fa-lightbulb mr-1"></i> Hint
+                </button>
+                <button type="button" data-action="open-topic-lesson" data-topic-id="${t.id}" class="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition">
+                  <i class="fa-solid fa-book-open-reader mr-1"></i> 10m Read
+                </button>
+                <button type="button" data-action="restore-starter" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                  <i class="fa-solid fa-rotate-left mr-1"></i> Starter
+                </button>
+                <button type="button" data-action="open-save-project" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                  <i class="fa-solid fa-floppy-disk mr-1"></i> Save
+                </button>
+              </div>
+            </div>
+
+            <!-- 3-Column Scratch Studio -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+              <!-- Column 1: Categorized Block Palette -->
+              <div class="lg:col-span-3 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden min-h-[430px]">
+                <div class="px-4 py-3 border-b border-slate-100 font-display font-bold text-sm text-slate-800 flex items-center justify-between">
+                  <span>Block Palette</span>
+                  <span class="text-[11px] font-sans font-semibold text-slate-400">Click to add</span>
+                </div>
+                <div class="flex flex-1">
+                  <div class="w-20 bg-slate-50 border-r border-slate-100 py-2 flex flex-col gap-1 px-1.5 shrink-0">
+                    ${PALETTE_CATEGORIES.map((cat) => {
+                      const active = state.activePaletteCategory === cat.id;
+                      return `
+                        <button type="button" data-action="select-palette-cat" data-cat="${cat.id}" class="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-[10px] font-bold transition ${
+                          active ? "bg-white shadow-sm text-slate-900 ring-1 ring-slate-200" : "text-slate-500 hover:bg-white/70"
+                        }">
+                          <span class="w-4 h-4 rounded-full mb-1 shadow-inner" style="background-color:${cat.color};"></span>
+                          ${cat.label}
+                        </button>
+                      `;
+                    }).join("")}
+                  </div>
+                  <div class="flex-1 p-3 space-y-2 overflow-y-auto bg-slate-50/40">
+                    ${paletteList
+                      .map(([type, def]) => {
+                        const cleanLabel = def.label
+                          .replace(/\{(\w+)\}/g, (_, k) => `(${def.defaults[k]})`)
+                          .replace(/\[(\w+)\]/g, (_, k) => `[${def.defaults[k]}]`);
+                        return `
+                          <button type="button" data-action="add-block" data-block-type="${type}" class="w-full text-left scratch-block ${def.isHat ? "hat-block" : ""} px-3 py-2 text-white font-bold text-xs flex items-center justify-between gap-2" style="background-color:${def.color};">
+                            <span>${cleanLabel}</span>
+                            <i class="fa-solid fa-plus text-[10px] opacity-80"></i>
+                          </button>
+                        `;
+                      })
+                      .join("")}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column 2: Script Assembly Workspace -->
+              <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden min-h-[430px]">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div class="font-display font-bold text-sm text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-blue-600"></i> Script Workspace
+                  </div>
+                  <button type="button" data-action="clear-workspace" class="text-xs font-bold text-rose-500 hover:text-rose-700">
+                    <i class="fa-solid fa-trash-can mr-1"></i> Clear
+                  </button>
+                </div>
+                <div id="workspace-blocks-list" class="flex-1 p-4 overflow-y-auto bg-slate-50/60"></div>
+              </div>
+
+              <!-- Column 3: Live Stage & Grading Controls -->
+              <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <button type="button" data-action="run-script" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-sm transition flex items-center gap-1.5">
+                      <i class="fa-solid fa-flag"></i> Run Green Flag
+                    </button>
+                    <button type="button" data-action="stop-script" class="w-9 h-9 rounded-xl bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-sm transition" title="Stop">
+                      <i class="fa-solid fa-stop"></i>
+                    </button>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" data-action="toggle-grid" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border ${state.showGrid ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-500"}" title="Toggle Coordinate Grid">
+                      <i class="fa-solid fa-border-all"></i>
+                    </button>
+                    <button type="button" data-action="cycle-sprite" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700" title="Switch Character">
+                      <i class="fa-solid fa-cat"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Interactive Stage Canvas -->
+                <div class="relative w-full aspect-[4/3] bg-white border-b border-slate-100">
+                  <canvas id="stage-canvas" class="w-full h-full block"></canvas>
+                </div>
+
+                <!-- Live Telemetry HUD -->
+                <div class="grid grid-cols-5 gap-1 px-3 py-2.5 bg-slate-50 text-center border-b border-slate-100">
+                  <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">X</div>
+                    <div id="hud-x" class="font-mono text-xs font-bold text-slate-800">0</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Y</div>
+                    <div id="hud-y" class="font-mono text-xs font-bold text-slate-800">0</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Dir</div>
+                    <div id="hud-dir" class="font-mono text-xs font-bold text-slate-800">90°</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Score</div>
+                    <div id="hud-score" class="font-mono text-xs font-bold text-indigo-600">0</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Timer</div>
+                    <div id="hud-timer" class="font-mono text-xs font-bold text-slate-800">0.0s</div>
+                  </div>
+                </div>
+
+                <!-- Check & Submit Challenge Button -->
+                <div class="p-4 mt-auto">
+                  <button type="button" data-action="submit-challenge" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> Check & Submit Challenge (+${ch.xp} XP)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      /* ---------------- STUDENT: SAVED PROJECTS ---------------- */
+      function renderStudentProjects() {
+        const list = state.student.savedProjects;
+        return `
+          <div class="space-y-6 animate-pop">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 class="font-display text-2xl font-bold text-slate-900">My Saved Scratch Projects (${list.length})</h2>
+                <p class="text-sm text-slate-500">Reopen any saved script in the Block Coding Studio to continue remixing.</p>
+              </div>
+              <button type="button" data-action="switch-subview" data-subview="playground" class="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm">
+                Open Coding Studio
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${list
+                .map(
+                  (p) => `
+                <div class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">${flattenBlocks(p.blocks || []).length} Blocks</span>
+                      <span class="text-xs text-slate-400">${p.date}</span>
+                    </div>
+                    <h3 class="font-display font-bold text-lg text-slate-900">${p.title}</h3>
+                  </div>
+                  <button type="button" data-action="load-saved-project" data-proj-id="${p.id}" class="mt-5 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition">
+                    Load into Playground
+                  </button>
+                </div>`
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      /* ---------------- STUDENT: CERTIFICATES & PRINT VIEW ---------------- */
+      function buildCertificateHTML(cert) {
+        return `
+          <div id="printable-certificate-area" class="bg-white p-6 sm:p-10 rounded-3xl border-8 border-double border-amber-400 shadow-lg text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-extrabold uppercase tracking-widest mb-3">
+              <i class="fa-solid fa-award text-amber-500"></i> Official Certificate of Achievement
+            </div>
+            <h2 class="font-display text-2xl sm:text-4xl font-bold text-slate-900">Certificate of Coding Mastery</h2>
+            <p class="text-slate-500 text-xs sm:text-sm mt-2">This certifies that</p>
+            <div class="font-display text-2xl sm:text-3xl font-bold text-indigo-600 my-2 border-b-2 border-slate-200 inline-block px-8 pb-1.5">
+              ${state.student.name}
+            </div>
+            <p class="text-slate-600 text-xs sm:text-sm max-w-lg mx-auto mt-2 leading-relaxed">
+              has successfully completed <strong>${cert.title}</strong> in <strong>${cert.topicTitle}</strong> at ScratchCraft Academy.
+            </p>
+            <div class="grid grid-cols-3 gap-3 max-w-md mx-auto my-5 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+              <div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Certificate ID</div>
+                <div class="font-mono font-bold text-xs text-slate-800 mt-0.5">${cert.id}</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">XP Awarded</div>
+                <div class="font-display text-base font-bold text-indigo-600">+${cert.xp} XP</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Date Issued</div>
+                <div class="font-bold text-xs text-slate-800 mt-0.5">${cert.date}</div>
+              </div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-400">
+              ScratchCraft Academy • Developed by Taskify Digital Solution
+            </div>
+          </div>
+        `;
+      }
+
+      function openCertificateModal(certId) {
+        const cert = state.student.certificates.find((c) => c.id === certId) || state.student.certificates[0];
+        if (!cert) return;
+        showModal(`
+          <div class="space-y-4">
+            ${buildCertificateHTML(cert)}
+            <div class="flex justify-end gap-2">
+              <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Close</button>
+              <button type="button" data-action="print-certificate" class="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">
+                <i class="fa-solid fa-print mr-1.5"></i> Print / Save PDF
+              </button>
+            </div>
+          </div>
+        `);
+      }
+
+      function renderStudentCertificates() {
+        const certs = state.student.certificates;
+        return `
+          <div class="space-y-6 animate-pop">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 class="font-display text-2xl font-bold text-slate-900">My Earned Certificates (${certs.length})</h2>
+                <p class="text-sm text-slate-500">Every completed challenge unlocks an official certificate ready to view or print.</p>
+              </div>
+              <button type="button" data-action="switch-subview" data-subview="playground" class="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm">
+                Earn More Certificates
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${certs
+                .map(
+                  (c) => `
+                <div class="bg-white rounded-3xl border-2 border-amber-200 p-5 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-extrabold"><i class="fa-solid fa-award mr-1"></i> +${c.xp} XP</span>
+                      <span class="text-xs text-slate-400">${c.date}</span>
+                    </div>
+                    <div class="text-xs font-bold text-blue-600 uppercase">${c.topicTitle}</div>
+                    <h3 class="font-display font-bold text-lg text-slate-900 mt-0.5">${c.title}</h3>
+                    <p class="text-xs text-slate-500 mt-2">ID: <span class="font-mono">${c.id}</span> • ${state.student.name}</p>
+                  </div>
+                  <button type="button" data-action="view-cert" data-cert-id="${c.id}" class="mt-5 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition">
+                    Open & Print Certificate
+                  </button>
+                </div>`
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      /* ---------------- TEACHER PORTAL ---------------- */
+      function renderTeacherPortal() {
+        const students = state.teacher.students;
+        const sections = state.teacher.sections;
+        const filtered =
+          state.teacherSectionFilter === "ALL"
+            ? students
+            : students.filter((s) => s.section === state.teacherSectionFilter);
+
+        if (state.subView === "sections") {
+          return `
+            <div class="space-y-6 animate-pop">
+              <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 class="font-display text-2xl font-bold text-slate-900">Class Sections Management</h2>
+                  <p class="text-sm text-slate-500">Create, rename, or remove class sections and filter students by section.</p>
+                </div>
+                <button type="button" data-action="open-section-modal" class="px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-sm">
+                  <i class="fa-solid fa-plus mr-1.5"></i> Create New Section
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                ${sections
+                  .map((sec) => {
+                    const count = students.filter((s) => s.section === sec.name).length;
+                    return `
+                      <div class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div class="flex items-center justify-between mb-3">
+                            <span class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-extrabold">${count} Students</span>
+                            <div class="flex items-center gap-2">
+                              <button type="button" data-action="open-section-modal" data-sec-id="${sec.id}" class="text-slate-400 hover:text-blue-600 text-xs" title="Edit Section"><i class="fa-solid fa-pen"></i></button>
+                              <button type="button" data-action="delete-section" data-sec-id="${sec.id}" class="text-slate-400 hover:text-rose-600 text-xs" title="Delete Section"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                          </div>
+                          <h3 class="font-display font-bold text-lg text-slate-900">${sec.name}</h3>
+                          <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-door-open mr-1"></i> ${sec.room} • ${sec.schedule}</p>
+                        </div>
+                        <button type="button" data-action="filter-section-roster" data-sec-name="${sec.name}" class="mt-5 w-full py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition">
+                          View Section Students →
+                        </button>
+                      </div>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        if (state.subView === "assignments") {
+          return `
+            <div class="space-y-6 animate-pop">
+              <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 class="font-display text-2xl font-bold text-slate-900">Assignments & Pacing</h2>
+                  <p class="text-sm text-slate-500">Assign topic milestones across your class sections.</p>
+                </div>
+                <button type="button" data-action="open-assignment-modal" class="px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-sm">
+                  <i class="fa-solid fa-plus mr-1.5"></i> Create Assignment
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                ${state.teacher.assignments
+                  .map(
+                    (a) => `
+                  <div class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">${a.status}</span>
+                      <span class="text-xs text-slate-400">Due ${a.dueDate}</span>
+                    </div>
+                    <h3 class="font-display font-bold text-lg text-slate-900">${a.title}</h3>
+                    <p class="text-xs text-purple-600 font-bold mt-1">${a.topicRange}</p>
+                  </div>`
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        // Default Teacher View: Students, Passwords, Sections & Score Management
+        const avgSolved = students.length
+          ? Math.round(students.reduce((acc, s) => acc + s.completed, 0) / students.length)
+          : 0;
+
+        return `
+          <div class="space-y-6 animate-pop">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Enrolled Students</div>
+                <div class="font-display text-3xl font-bold text-slate-900 mt-1">${students.length}</div>
+                <div class="text-xs text-emerald-600 font-semibold mt-1">Across ${sections.length} Sections</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Avg Challenges Solved</div>
+                <div class="font-display text-3xl font-bold text-purple-600 mt-1">${avgSolved} <span class="text-base text-slate-400">/ 180</span></div>
+                <div class="text-xs text-slate-500 mt-1">30-Topic Curriculum</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Class Sections</div>
+                <div class="font-display text-3xl font-bold text-blue-600 mt-1">${sections.length}</div>
+                <button type="button" data-action="open-section-modal" class="text-xs text-purple-600 font-bold mt-1 hover:underline">+ Add Section →</button>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Student Credentials</div>
+                <div class="font-display text-3xl font-bold text-amber-500 mt-1">Active</div>
+                <button type="button" data-action="open-student-modal" class="text-xs text-purple-600 font-bold mt-1 hover:underline">+ Add Student & Password →</button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+              <div class="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <h2 class="font-display text-xl font-bold text-slate-900">Student Roster, Passwords & Score Management</h2>
+                  <p class="text-xs text-slate-500">Add, edit, or delete students, set their login passwords, assign sections, and manage scores/XP.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <select id="teacher-section-filter-select" class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none">
+                    <option value="ALL" ${state.teacherSectionFilter === "ALL" ? "selected" : ""}>All Sections (${students.length})</option>
+                    ${sections.map((sec) => `<option value="${sec.name}" ${state.teacherSectionFilter === sec.name ? "selected" : ""}>${sec.name}</option>`).join("")}
+                  </select>
+                  <button type="button" data-action="open-section-modal" class="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold">
+                    + New Section
+                  </button>
+                  <button type="button" data-action="open-student-modal" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm">
+                    <i class="fa-solid fa-user-plus mr-1"></i> Add Student
+                  </button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+                      <th class="py-3.5 px-5">Student & Username</th>
+                      <th class="py-3.5 px-5">Section</th>
+                      <th class="py-3.5 px-5">Password</th>
+                      <th class="py-3.5 px-5">Solved / 180</th>
+                      <th class="py-3.5 px-5">XP & Certs</th>
+                      <th class="py-3.5 px-5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-sm">
+                    ${filtered
+                      .map(
+                        (st) => `
+                      <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3.5 px-5">
+                          <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center shrink-0">${st.avatar}</div>
+                            <div>
+                              <div class="font-bold text-slate-900">${st.name}</div>
+                              <div class="text-[11px] font-mono text-slate-400">@${st.username}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="py-3.5 px-5">
+                          <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs">${st.section}</span>
+                        </td>
+                        <td class="py-3.5 px-5">
+                          <span class="font-mono text-xs bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg">${st.password}</span>
+                        </td>
+                        <td class="py-3.5 px-5">
+                          <span class="font-bold text-slate-800 text-xs">${st.completed} / 180</span>
+                        </td>
+                        <td class="py-3.5 px-5 text-xs">
+                          <div class="font-bold text-indigo-600">${st.xp.toLocaleString()} XP</div>
+                          <div class="text-amber-600 font-semibold">${st.certs || 0} Certificates</div>
+                        </td>
+                        <td class="py-3.5 px-5 text-right">
+                          <div class="inline-flex items-center gap-1.5">
+                            <button type="button" data-action="open-score-modal" data-student-id="${st.id}" class="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold" title="Manage Score & XP">
+                              <i class="fa-solid fa-star-half-stroke"></i> Score
+                            </button>
+                            <button type="button" data-action="open-student-modal" data-student-id="${st.id}" class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold" title="Edit Student & Password">
+                              <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" data-action="inspect-code" data-student-id="${st.id}" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="Inspect Code">
+                              <i class="fa-solid fa-code"></i>
+                            </button>
+                            <button type="button" data-action="delete-student" data-student-id="${st.id}" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold" title="Delete Student">
+                              <i class="fa-solid fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>`
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      /* ---------------- HIDDEN VENDOR ADMIN PORTAL ---------------- */
+      function renderVendorPortal() {
+        const schools = state.vendor.schools;
+        const used = schools.reduce((a, b) => a + b.seatsUsed, 0);
+        const cap = schools.reduce((a, b) => a + b.seatsTotal, 0);
+        const mrr = schools.reduce((a, b) => a + b.mrr, 0);
+
+        if (state.subView === "modules") {
+          return `
+            <div class="space-y-6 animate-pop">
+              <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm">
+                <h2 class="font-display text-2xl font-bold text-slate-900">Global Curriculum Module Control (30 Topics)</h2>
+                <p class="text-sm text-slate-500 mt-1">Enable or lock specific Scratch topics across all school tenants.</p>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${CURRICULUM.map((t) => {
+                  const locked = state.vendor.disabledTopics.includes(t.id);
+                  return `
+                    <div class="bg-white p-4 rounded-2xl border ${locked ? "border-rose-200 bg-rose-50/40" : "border-slate-200/90"} flex items-center justify-between gap-3">
+                      <div>
+                        <span class="text-[11px] font-extrabold text-slate-400 uppercase">Topic ${t.id} • ${t.category}</span>
+                        <div class="font-bold text-sm text-slate-900">${t.title}</div>
+                      </div>
+                      <button type="button" data-action="toggle-vendor-topic" data-topic-id="${t.id}" class="px-3.5 py-2 rounded-xl text-xs font-extrabold ${
+                        locked ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+                      }">
+                        ${locked ? "Locked" : "Enabled"}
+                      </button>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="space-y-6 animate-pop">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Active School Tenants</div>
+                <div class="font-display text-3xl font-bold text-slate-900 mt-1">${schools.length}</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Licensed Seats</div>
+                <div class="font-display text-3xl font-bold text-emerald-600 mt-1">${used.toLocaleString()} / ${cap.toLocaleString()}</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Monthly Recurring Rev</div>
+                <div class="font-display text-3xl font-bold text-blue-600 mt-1">$${mrr.toLocaleString()}</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase">Active Topics</div>
+                <div class="font-display text-3xl font-bold text-purple-600 mt-1">${30 - state.vendor.disabledTopics.length} / 30</div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+              <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h2 class="font-display text-xl font-bold text-slate-900">School Tenants & Seat Licensing</h2>
+                  <p class="text-xs text-slate-500">Provision new school districts and allocate student seat packs.</p>
+                </div>
+                <button type="button" data-action="open-add-school-modal" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                  + Provision School
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 text-[11px] font-extrabold uppercase text-slate-500 border-b border-slate-200/80">
+                      <th class="py-3.5 px-5">School Name</th>
+                      <th class="py-3.5 px-5">Plan</th>
+                      <th class="py-3.5 px-5">Seats</th>
+                      <th class="py-3.5 px-5">MRR</th>
+                      <th class="py-3.5 px-5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-sm">
+                    ${schools
+                      .map(
+                        (sc) => `
+                      <tr>
+                        <td class="py-3.5 px-5 font-bold text-slate-900">${sc.name} <span class="block text-xs font-normal text-slate-400">${sc.district}</span></td>
+                        <td class="py-3.5 px-5"><span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs">${sc.plan}</span></td>
+                        <td class="py-3.5 px-5 text-xs font-bold">${sc.seatsUsed} / ${sc.seatsTotal}</td>
+                        <td class="py-3.5 px-5 font-bold">$${sc.mrr}/mo</td>
+                        <td class="py-3.5 px-5 text-right">
+                          <button type="button" data-action="add-school-seats" data-school-id="${sc.id}" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold">+50 Seats</button>
+                        </td>
+                      </tr>`
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      /* -------------------------------------------------------------------
+         10. TEACHER & VENDOR CRUD MODALS
+      -------------------------------------------------------------------- */
+      function openSectionModal(secId = null) {
+        const existing = secId ? state.teacher.sections.find((s) => s.id === secId) : null;
+        showModal(`
+          <div>
+            <h3 class="font-display text-xl font-bold text-slate-900 mb-1">${existing ? "Edit Class Section" : "Create New Class Section"}</h3>
+            <p class="text-xs text-slate-500 mb-4">Organize your students into class periods or grade groups.</p>
+            <div class="space-y-3 mb-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Section Name</label>
+                <input id="modal-sec-name" type="text" value="${existing ? existing.name : ""}" placeholder="e.g. Grade 4 - Lovelace" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Room / Lab</label>
+                  <input id="modal-sec-room" type="text" value="${existing ? existing.room : "STEM Lab 101"}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Schedule</label>
+                  <input id="modal-sec-sched" type="text" value="${existing ? existing.schedule : "Mon / Wed 11:00 AM"}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+              <button type="button" data-action="save-section" data-sec-id="${existing ? existing.id : ""}" class="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">Save Section</button>
+            </div>
+          </div>
+        `);
+      }
+
+      function openStudentModal(studentId = null) {
+        const existing = studentId ? state.teacher.students.find((s) => s.id === studentId) : null;
+        showModal(`
+          <div>
+            <h3 class="font-display text-xl font-bold text-slate-900 mb-1">${existing ? "Edit Student Info & Password" : "Add Student & Create Password"}</h3>
+            <p class="text-xs text-slate-500 mb-4">Students can log in immediately on the homepage using this username and password.</p>
+            <div class="space-y-3 mb-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                  <input id="modal-st-name" type="text" value="${existing ? existing.name : ""}" placeholder="e.g. Lucas Cruz" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Login Username</label>
+                  <input id="modal-st-user" type="text" value="${existing ? existing.username : ""}" placeholder="e.g. lucas.c" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-mono" />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Assign Section</label>
+                  <select id="modal-st-sec" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                    ${state.teacher.sections
+                      .map((sec) => `<option value="${sec.name}" ${existing && existing.section === sec.name ? "selected" : ""}>${sec.name}</option>`)
+                      .join("")}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Student Password</label>
+                  <input id="modal-st-pass" type="text" value="${existing ? existing.password : "code2026"}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-mono" />
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+              <button type="button" data-action="save-student" data-student-id="${existing ? existing.id : ""}" class="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">
+                ${existing ? "Save Changes" : "Create Student Account"}
+              </button>
+            </div>
+          </div>
+        `);
+      }
+
+      function openScoreModal(studentId) {
+        const st = state.teacher.students.find((s) => s.id === studentId);
+        if (!st) return;
+        showModal(`
+          <div>
+            <span class="text-xs font-bold text-blue-600 uppercase">Score & Progress Manager</span>
+            <h3 class="font-display text-xl font-bold text-slate-900 mb-1">${st.name} (@${st.username})</h3>
+            <p class="text-xs text-slate-500 mb-4">${st.section}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Challenges Solved (0–180)</label>
+                <input id="modal-score-comp" type="number" min="0" max="180" value="${st.completed}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Total XP Points</label>
+                <input id="modal-score-xp" type="number" min="0" step="10" value="${st.xp}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Certificates Count</label>
+                <input id="modal-score-certs" type="number" min="0" max="180" value="${st.certs || 0}" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold" />
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+              <button type="button" data-action="save-score" data-student-id="${st.id}" class="px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">Save Score & XP</button>
+            </div>
+          </div>
+        `);
+      }
+
+      /* -------------------------------------------------------------------
+         11. MASTER APPLICATION RENDERER
+      -------------------------------------------------------------------- */
+      function populateLoginStudentSelect() {
+        const sel = document.getElementById("select-student-quickpick");
+        if (!sel) return;
+        sel.innerHTML = state.teacher.students
+          .map((s) => `<option value="${s.username}">${s.name}</option>`)
+          .join("");
+      }
+
+      function renderApp() {
+        const homeView = document.getElementById("home-login-view");
+        const appView = document.getElementById("app-shell-view");
+
+        if (state.showLogin) {
+          homeView.classList.remove("hidden");
+          appView.classList.add("hidden");
+          appView.classList.remove("flex");
+          populateLoginStudentSelect();
+          return;
+        }
+
+        homeView.classList.add("hidden");
+        appView.classList.remove("hidden");
+        appView.classList.add("flex");
+
+        // Update Role Pills (Vendor stays hidden unless unlocked!)
+        ["student", "teacher", "vendor"].forEach((r) => {
+          const btn = document.getElementById(`nav-role-${r}`);
+          if (!btn) return;
+          if (r === "vendor") {
+            if (!state.vendorUnlocked && state.currentRole !== "vendor") {
+              btn.classList.add("hidden");
+              btn.classList.remove("flex");
+              return;
+            } else {
+              btn.classList.remove("hidden");
+              btn.classList.add("flex");
+            }
+          }
+          if (state.currentRole === r) {
+            const cls =
+              r === "student"
+                ? "bg-blue-600 text-white shadow-sm"
+                : r === "teacher"
+                ? "bg-purple-600 text-white shadow-sm"
+                : "bg-emerald-600 text-white shadow-sm";
+            btn.className = `px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 ${cls}`;
+          } else {
+            btn.className = "px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
+          }
+        });
+
+        const xpPill = document.getElementById("student-xp-pill");
+        if (xpPill) xpPill.classList.toggle("hidden", state.currentRole !== "student");
+
+        updateHeaderHUD();
+        renderSubNav();
+
+        const main = document.getElementById("main-workspace");
+        if (!main) return;
+
+        if (state.currentRole === "student") {
+          if (state.subView === "playground") {
+            main.innerHTML = renderStudentPlayground();
+            renderWorkspace();
+            setTimeout(() => {
+              drawStage();
+              updateStageHUD();
+            }, 25);
+          } else if (state.subView === "projects") {
+            main.innerHTML = renderStudentProjects();
+          } else if (state.subView === "certificates") {
+            main.innerHTML = renderStudentCertificates();
+          } else {
+            main.innerHTML = renderStudentRoadmap();
+          }
+        } else if (state.currentRole === "teacher") {
+          main.innerHTML = renderTeacherPortal();
+        } else {
+          main.innerHTML = renderVendorPortal();
+        }
+      }
+
+      /* -------------------------------------------------------------------
+         12. GLOBAL EVENT DELEGATION (Zero Inline Script Fragility)
+      -------------------------------------------------------------------- */
+      function unlockHiddenVendorPortal() {
+        state.vendorUnlocked = true;
+        state.showLogin = false;
+        state.currentRole = "vendor";
+        state.subView = "tenants";
+        saveState();
+        renderApp();
+        showToast("Vendor Admin Console Unlocked!", "success");
+      }
+
+      document.addEventListener("click", (e) => {
+        const target = e.target.closest("[data-action]");
+        if (!target) return;
+        const action = target.getAttribute("data-action");
+
+        switch (action) {
+          case "hero-next":
+            heroIndex = (heroIndex + 1) % HERO_SLIDES.length;
+            renderHeroSlideshow();
+            break;
+          case "hero-prev":
+            heroIndex = (heroIndex - 1 + HERO_SLIDES.length) % HERO_SLIDES.length;
+            renderHeroSlideshow();
+            break;
+          case "hero-goto":
+            heroIndex = Number(target.getAttribute("data-index")) || 0;
+            renderHeroSlideshow();
+            break;
+
+          case "scroll-login-student":
+          case "login-tab-student": {
+            document.getElementById("tab-btn-student").className = "flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 text-white shadow-sm transition";
+            document.getElementById("tab-btn-teacher").className = "flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition";
+            document.getElementById("form-panel-student").classList.remove("hidden");
+            document.getElementById("form-panel-teacher").classList.add("hidden");
+            if (action === "scroll-login-student") {
+              document.getElementById("login-cards-section")?.scrollIntoView({ behavior: "smooth" });
+            }
+            break;
+          }
+
+          case "scroll-login-teacher":
+          case "login-tab-teacher": {
+            document.getElementById("tab-btn-teacher").className = "flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-purple-600 text-white shadow-sm transition";
+            document.getElementById("tab-btn-student").className = "flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition";
+            document.getElementById("form-panel-teacher").classList.remove("hidden");
+            document.getElementById("form-panel-student").classList.add("hidden");
+            if (action === "scroll-login-teacher") {
+              document.getElementById("login-cards-section")?.scrollIntoView({ behavior: "smooth" });
+            }
+            break;
+          }
+
+          case "quick-demo-student":
+            state.showLogin = false;
+            state.currentRole = "student";
+            state.subView = "roadmap";
+            saveState();
+            renderApp();
+            showToast(`Signed in as ${state.student.name}`, "success");
+            break;
+
+          case "quick-demo-playground":
+            state.showLogin = false;
+            state.currentRole = "student";
+            state.subView = "playground";
+            saveState();
+            renderApp();
+            break;
+
+          case "quick-demo-lesson":
+            state.showLogin = false;
+            state.currentRole = "student";
+            state.subView = "roadmap";
+            saveState();
+            renderApp();
+            openTopicLessonModal(1);
+            break;
+
+          case "quick-demo-teacher":
+            state.showLogin = false;
+            state.currentRole = "teacher";
+            state.subView = "roster";
+            saveState();
+            renderApp();
+            showToast(`Signed in as ${state.teacher.name}`, "success");
+            break;
+
+          case "logout-home":
+            stopScript();
+            state.showLogin = true;
+            saveState();
+            renderApp();
+            break;
+
+          case "reset-demo-data":
+            localStorage.removeItem(STORAGE_KEY);
+            state = createDefaultState();
+            loadChallenge("1-1");
+            renderHeroSlideshow();
+            renderApp();
+            showToast("All demo data reset to defaults!", "info");
+            break;
+
+          case "switch-role": {
+            const role = target.getAttribute("data-role");
+            stopScript();
+            state.currentRole = role;
+            state.subView = role === "student" ? "roadmap" : role === "teacher" ? "roster" : "tenants";
+            saveState();
+            renderApp();
+            break;
+          }
+
+          case "switch-subview": {
+            const sv = target.getAttribute("data-subview");
+            stopScript();
+            state.subView = sv;
+            saveState();
+            renderApp();
+            break;
+          }
+
+          case "hide-vendor-portal":
+            state.vendorUnlocked = false;
+            state.currentRole = "student";
+            state.subView = "roadmap";
+            saveState();
+            renderApp();
+            showToast("Vendor Admin Console hidden.", "info");
+            break;
+
+          case "filter-topics": {
+            const cat = target.getAttribute("data-cat");
+            document.querySelectorAll(".topic-cat-btn").forEach((b) => {
+              b.className =
+                b.getAttribute("data-cat") === cat
+                  ? "topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white"
+                  : "topic-cat-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200";
+            });
+            document.querySelectorAll(".topic-item-card").forEach((card) => {
+              const c = card.getAttribute("data-cat");
+              const match =
+                cat === "ALL" ||
+                (cat === "Looks" && (c === "Looks" || c === "Sound")) ||
+                (cat === "Control" && (c === "Control" || c === "Events" || c === "Sensing")) ||
+                (cat === "Pen" && (c === "Pen" || c === "Operators")) ||
+                c === cat;
+              card.style.display = match ? "" : "none";
+            });
+            break;
+          }
+
+          case "open-topic-lesson": {
+            const tid = Number(target.getAttribute("data-topic-id")) || 1;
+            openTopicLessonModal(tid);
+            break;
+          }
+
+          case "post-discussion": {
+            const tid = Number(target.getAttribute("data-topic-id")) || 1;
+            const inp = document.getElementById("discussion-reply-input");
+            const txt = (inp?.value || "").trim();
+            if (!txt) return;
+            if (!state.student.topicDiscussions[tid]) state.student.topicDiscussions[tid] = [];
+            state.student.topicDiscussions[tid].push({
+              author: state.currentRole === "teacher" ? state.teacher.name : state.student.name,
+              role: state.currentRole === "teacher" ? "Teacher" : "Student",
+              time: "Just now",
+              text: txt
+            });
+            saveState();
+            openTopicLessonModal(tid);
+            showToast("Reflection posted to topic discussion!", "success");
+            break;
+          }
+
+          case "open-challenge": {
+            const cid = target.getAttribute("data-challenge-id");
+            closeModal();
+            loadChallenge(cid);
+            state.currentRole = "student";
+            state.subView = "playground";
+            saveState();
+            renderApp();
+            break;
+          }
+
+          case "select-palette-cat":
+            state.activePaletteCategory = target.getAttribute("data-cat");
+            renderApp();
+            break;
+
+          case "add-block":
+            addBlock(target.getAttribute("data-block-type"));
+            break;
+
+          case "toggle-cblock": {
+            const bid = target.getAttribute("data-block-id");
+            activeCBlockId = activeCBlockId === bid ? null : bid;
+            renderWorkspace();
+            break;
+          }
+
+          case "delete-block":
+            deleteBlock(target.getAttribute("data-block-id"));
+            break;
+
+          case "move-block-up":
+            moveBlockOrder(target.getAttribute("data-block-id"), -1);
+            break;
+
+          case "move-block-down":
+            moveBlockOrder(target.getAttribute("data-block-id"), 1);
+            break;
+
+          case "clear-workspace":
+            workspaceBlocks = [];
+            activeCBlockId = null;
+            renderWorkspace();
+            break;
+
+          case "restore-starter":
+            loadChallenge(state.activeChallengeId);
+            renderWorkspace();
+            showToast("Starter blocks restored.", "info");
+            break;
+
+          case "show-hint": {
+            const ch = getActiveChallenge();
+            showToast("Hint: " + ch.hint, "info");
+            break;
+          }
+
+          case "run-script":
+            runScript(false);
+            break;
+
+          case "stop-script":
+            stopScript();
+            break;
+
+          case "toggle-grid":
+            state.showGrid = !state.showGrid;
+            saveState();
+            renderApp();
+            break;
+
+          case "cycle-sprite":
+            stage.costumeIdx = (stage.costumeIdx + 1) % COSTUMES.length;
+            drawStage();
+            showToast(`Sprite switched to ${COSTUMES[stage.costumeIdx].name}`, "info");
+            break;
+
+          case "submit-challenge":
+            evaluateChallenge(false);
+            break;
+
+          case "demo-pass-challenge":
+            evaluateChallenge(true);
+            break;
+
+          case "view-cert":
+            openCertificateModal(target.getAttribute("data-cert-id"));
+            break;
+
+          case "print-certificate":
+            window.print();
+            break;
+
+          case "open-save-project": {
+            const ch = getActiveChallenge();
+            showModal(`
+              <div>
+                <h3 class="font-display text-xl font-bold text-slate-900 mb-1">Save Project to Portfolio</h3>
+                <p class="text-xs text-slate-500 mb-4">Save your block script to My Projects.</p>
+                <input id="modal-save-proj-name" type="text" value="${ch.title} Remix" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm mb-4" />
+                <div class="flex justify-end gap-2">
+                  <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                  <button type="button" data-action="confirm-save-project" class="px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">Save Project</button>
+                </div>
+              </div>
+            `);
+            break;
+          }
+
+          case "confirm-save-project": {
+            const name = (document.getElementById("modal-save-proj-name")?.value || "My Scratch Project").trim();
+            state.student.savedProjects.unshift({
+              id: "proj_" + Date.now(),
+              title: name,
+              date: "Nov 25, 2026",
+              blocks: JSON.parse(JSON.stringify(workspaceBlocks))
+            });
+            saveState();
+            closeModal();
+            showToast(`Saved "${name}" to My Projects!`, "success");
+            break;
+          }
+
+          case "load-saved-project": {
+            const pid = target.getAttribute("data-proj-id");
+            const proj = state.student.savedProjects.find((p) => p.id === pid);
+            if (proj) {
+              workspaceBlocks = hydrateBlocks(proj.blocks);
+              state.subView = "playground";
+              renderApp();
+              showToast(`Loaded "${proj.title}"`, "success");
+            }
+            break;
+          }
+
+          /* ---- TEACHER CRUD ACTIONS ---- */
+          case "open-section-modal":
+            openSectionModal(target.getAttribute("data-sec-id") || null);
+            break;
+
+          case "save-section": {
+            const secId = target.getAttribute("data-sec-id");
+            const name = (document.getElementById("modal-sec-name")?.value || "").trim();
+            if (!name) {
+              showToast("Please enter a section name.", "warning");
+              return;
+            }
+            const room = (document.getElementById("modal-sec-room")?.value || "STEM Lab").trim();
+            const schedule = (document.getElementById("modal-sec-sched")?.value || "Flexible").trim();
+            if (secId) {
+              const existing = state.teacher.sections.find((s) => s.id === secId);
+              if (existing) {
+                const oldName = existing.name;
+                existing.name = name;
+                existing.room = room;
+                existing.schedule = schedule;
+                state.teacher.students.forEach((st) => {
+                  if (st.section === oldName) st.section = name;
+                });
+              }
+              showToast(`Updated section "${name}"!`, "success");
+            } else {
+              state.teacher.sections.push({ id: "sec_" + Date.now(), name, room, schedule });
+              showToast(`Created section "${name}"!`, "success");
+            }
+            saveState();
+            closeModal();
+            renderApp();
+            break;
+          }
+
+          case "delete-section": {
+            const secId = target.getAttribute("data-sec-id");
+            if (state.teacher.sections.length <= 1) {
+              showToast("At least one section must remain active.", "warning");
+              return;
+            }
+            state.teacher.sections = state.teacher.sections.filter((s) => s.id !== secId);
+            state.teacherSectionFilter = "ALL";
+            saveState();
+            renderApp();
+            showToast("Section removed.", "info");
+            break;
+          }
+
+          case "filter-section-roster":
+            state.teacherSectionFilter = target.getAttribute("data-sec-name");
+            state.subView = "roster";
+            renderApp();
+            break;
+
+          case "open-student-modal":
+            openStudentModal(target.getAttribute("data-student-id") || null);
+            break;
+
+          case "save-student": {
+            const sid = target.getAttribute("data-student-id");
+            const name = (document.getElementById("modal-st-name")?.value || "").trim();
+            const username = (document.getElementById("modal-st-user")?.value || "").trim().toLowerCase();
+            const section = document.getElementById("modal-st-sec")?.value || state.teacher.sections[0]?.name;
+            const password = (document.getElementById("modal-st-pass")?.value || "scratch123").trim();
+
+            if (!name || !username) {
+              showToast("Full name and login username are required.", "warning");
+              return;
+            }
+
+            const avatar = name
+              .split(" ")
+              .map((p) => p[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2) || "ST";
+
+            if (sid) {
+              const st = state.teacher.students.find((s) => s.id === sid);
+              if (st) {
+                st.name = name;
+                st.username = username;
+                st.section = section;
+                st.password = password;
+                st.avatar = avatar;
+                if (state.student.id === st.id) {
+                  state.student.name = name;
+                  state.student.username = username;
+                  state.student.section = section;
+                }
+              }
+              showToast(`Updated ${name}'s profile & password!`, "success");
+            } else {
+              state.teacher.students.unshift({
+                id: "st_" + Date.now(),
+                name,
+                username,
+                password,
+                section,
+                avatar,
+                completed: 0,
+                xp: 0,
+                certs: 0,
+                currentTopic: "Topic 1: Motion & Coordinates",
+                sampleCode: "// Ready to start Topic 1!"
+              });
+              showToast(`Added ${name} (Username: ${username} | Pass: ${password})`, "success");
+            }
+            saveState();
+            closeModal();
+            renderApp();
+            break;
+          }
+
+          case "delete-student": {
+            const sid = target.getAttribute("data-student-id");
+            const st = state.teacher.students.find((s) => s.id === sid);
+            if (!st) return;
+            state.teacher.students = state.teacher.students.filter((s) => s.id !== sid);
+            saveState();
+            renderApp();
+            showToast(`Deleted student ${st.name}.`, "info");
+            break;
+          }
+
+          case "open-score-modal":
+            openScoreModal(target.getAttribute("data-student-id"));
+            break;
+
+          case "save-score": {
+            const sid = target.getAttribute("data-student-id");
+            const st = state.teacher.students.find((s) => s.id === sid);
+            if (!st) return;
+            st.completed = Math.max(0, Math.min(180, Number(document.getElementById("modal-score-comp")?.value) || 0));
+            st.xp = Math.max(0, Number(document.getElementById("modal-score-xp")?.value) || 0);
+            st.certs = Math.max(0, Number(document.getElementById("modal-score-certs")?.value) || 0);
+            if (state.student.id === st.id) {
+              state.student.xp = st.xp;
+            }
+            saveState();
+            closeModal();
+            renderApp();
+            showToast(`Updated ${st.name}'s score (${st.completed}/180, ${st.xp} XP)!`, "success");
+            break;
+          }
+
+          case "inspect-code": {
+            const sid = target.getAttribute("data-student-id");
+            const st = state.teacher.students.find((s) => s.id === sid);
+            if (!st) return;
+            showModal(`
+              <div>
+                <span class="text-xs font-bold text-purple-600 uppercase">Code Submission Inspector</span>
+                <h3 class="font-display text-xl font-bold text-slate-900 mb-3">${st.name} — ${st.currentTopic}</h3>
+                <div class="bg-slate-900 text-amber-300 font-mono text-xs p-4 rounded-2xl mb-4 leading-relaxed">
+                  ${st.sampleCode}
+                </div>
+                <div class="flex justify-end">
+                  <button type="button" data-action="close-modal" class="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">Done</button>
+                </div>
+              </div>
+            `);
+            break;
+          }
+
+          case "open-assignment-modal":
+            showModal(`
+              <div>
+                <h3 class="font-display text-xl font-bold text-slate-900 mb-3">Create New Assignment</h3>
+                <input id="modal-assign-title" type="text" value="Topic 6: Animation & Forever Loops" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm mb-3" />
+                <select id="modal-assign-topic" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm mb-4">
+                  ${CURRICULUM.map((t) => `<option value="Topic ${t.id}: ${t.title} (6 Challenges)">Topic ${t.id}: ${t.title}</option>`).join("")}
+                </select>
+                <div class="flex justify-end gap-2">
+                  <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                  <button type="button" data-action="save-assignment" class="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">Publish</button>
+                </div>
+              </div>
+            `);
+            break;
+
+          case "save-assignment": {
+            const title = (document.getElementById("modal-assign-title")?.value || "New Assignment").trim();
+            const topicRange = document.getElementById("modal-assign-topic")?.value || "Topic 1";
+            state.teacher.assignments.unshift({
+              id: "as_" + Date.now(),
+              title,
+              topicRange,
+              dueDate: "Dec 18, 2026",
+              status: "Active"
+            });
+            saveState();
+            closeModal();
+            renderApp();
+            showToast("Assignment published!", "success");
+            break;
+          }
+
+          /* ---- VENDOR ACTIONS ---- */
+          case "toggle-vendor-topic": {
+            const tid = Number(target.getAttribute("data-topic-id"));
+            const idx = state.vendor.disabledTopics.indexOf(tid);
+            if (idx === -1) state.vendor.disabledTopics.push(tid);
+            else state.vendor.disabledTopics.splice(idx, 1);
+            saveState();
+            renderApp();
+            showToast(`Updated Topic ${tid} module status.`, "info");
+            break;
+          }
+
+          case "add-school-seats": {
+            const scId = target.getAttribute("data-school-id");
+            const sc = state.vendor.schools.find((s) => s.id === scId);
+            if (sc) {
+              sc.seatsTotal += 50;
+              sc.mrr += 125;
+              saveState();
+              renderApp();
+              showToast(`Added +50 seats to ${sc.name}`, "success");
+            }
+            break;
+          }
+
+          case "open-add-school-modal":
+            showModal(`
+              <div>
+                <h3 class="font-display text-xl font-bold text-slate-900 mb-3">Provision New School Tenant</h3>
+                <input id="modal-school-name" type="text" value="Summit Valley STEM Academy" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm mb-3" />
+                <input id="modal-school-dist" type="text" value="Summit Unified" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm mb-4" />
+                <div class="flex justify-end gap-2">
+                  <button type="button" data-action="close-modal" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                  <button type="button" data-action="confirm-add-school" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Provision</button>
+                </div>
+              </div>
+            `);
+            break;
+
+          case "confirm-add-school": {
+            const name = (document.getElementById("modal-school-name")?.value || "New Academy").trim();
+            const district = (document.getElementById("modal-school-dist")?.value || "Metro District").trim();
+            state.vendor.schools.push({
+              id: "sch_" + Date.now(),
+              name,
+              district,
+              plan: "School Plus",
+              seatsUsed: 10,
+              seatsTotal: 250,
+              teachers: 5,
+              mrr: 650
+            });
+            saveState();
+            closeModal();
+            renderApp();
+            showToast(`Provisioned ${name}!`, "success");
+            break;
+          }
+
+          case "close-modal":
+            closeModal();
+            break;
+        }
+      });
+
+      // Input & Change Listeners for Inline Block Inputs, Search & Dropdowns
+      document.addEventListener("change", (e) => {
+        const t = e.target;
+        if (t.hasAttribute("data-block-input")) {
+          const id = t.getAttribute("data-block-input");
+          const key = t.getAttribute("data-param-key");
+          const isNum = t.getAttribute("data-is-num") === "1";
+          setBlockParam(id, key, isNum ? Number(t.value) : t.value);
+        } else if (t.hasAttribute("data-block-select")) {
+          const id = t.getAttribute("data-block-select");
+          const key = t.getAttribute("data-param-key");
+          setBlockParam(id, key, t.value);
+        } else if (t.id === "playground-challenge-select") {
+          loadChallenge(t.value);
+          renderApp();
+        } else if (t.id === "teacher-section-filter-select") {
+          state.teacherSectionFilter = t.value;
+          renderApp();
+        } else if (t.id === "select-student-quickpick") {
+          const st = state.teacher.students.find((s) => s.username === t.value);
+          if (st) {
+            document.getElementById("input-student-user").value = st.username;
+            document.getElementById("input-student-pass").value = st.password;
+          }
+        }
+      });
+
+      document.addEventListener("input", (e) => {
+        if (e.target.id === "topic-search-box") {
+          const q = e.target.value.trim().toLowerCase();
+          document.querySelectorAll(".topic-item-card").forEach((card) => {
+            const hay = card.getAttribute("data-search") || "";
+            card.style.display = hay.includes(q) ? "" : "none";
+          });
+        }
+      });
+
+      // Login Forms Submission
+      document.getElementById("student-login-form")?.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const user = document.getElementById("input-student-user").value.trim().toLowerCase();
+        const pass = document.getElementById("input-student-pass").value;
+
+        const match = state.teacher.students.find(
+          (s) => (s.username.toLowerCase() === user || s.name.toLowerCase() === user) && s.password === pass
+        );
+        if (!match) {
+          showToast("Invalid student username or password. Check Teacher Portal roster!", "warning");
+          return;
+        }
+        state.student.id = match.id;
+        state.student.name = match.name;
+        state.student.username = match.username;
+        state.student.section = match.section;
+        state.student.xp = match.xp;
+        state.showLogin = false;
+        state.currentRole = "student";
+        state.subView = "roadmap";
+        saveState();
+        renderApp();
+        showToast(`Welcome back, ${match.name}!`, "success");
+      });
+
+      document.getElementById("teacher-login-form")?.addEventListener("submit", (e) => {
+        e.preventDefault();
+        state.showLogin = false;
+        state.currentRole = "teacher";
+        state.subView = "roster";
+        saveState();
+        renderApp();
+        showToast(`Signed in as ${state.teacher.name}`, "success");
+      });
+
+      // Hidden Vendor Admin Trigger: Double-Click (or Rapid Triple-Tap) on Header Logo
+      ["brand-logo-home", "brand-logo-app"].forEach((logoId) => {
+        const logoEl = document.getElementById(logoId);
+        if (!logoEl) return;
+        logoEl.addEventListener("dblclick", (e) => {
+          e.preventDefault();
+          unlockHiddenVendorPortal();
+        });
+        let tapCount = 0;
+        let tapTimer = null;
+        logoEl.addEventListener("touchend", () => {
+          tapCount++;
+          clearTimeout(tapTimer);
+          if (tapCount >= 3) {
+            tapCount = 0;
+            unlockHiddenVendorPortal();
+          } else {
+            tapTimer = setTimeout(() => {
+              tapCount = 0;
+            }, 600);
+          }
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        if (!state.showLogin && state.currentRole === "student" && state.subView === "playground") {
+          drawStage();
+        }
+      });
+
+      // Initialize Application on DOMContentLoaded
+      document.addEventListener("DOMContentLoaded", () => {
+        loadChallenge(state.activeChallengeId);
+        renderHeroSlideshow();
+        setInterval(() => {
+          if (state.showLogin) {
+            heroIndex = (heroIndex + 1) % HERO_SLIDES.length;
+            renderHeroSlideshow();
+          }
+        }, 6500);
+        renderApp();
+      });
+    })();
+  </script>
+</body>
+</html>
